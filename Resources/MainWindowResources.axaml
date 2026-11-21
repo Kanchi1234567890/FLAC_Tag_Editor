@@ -1,37 +1,83 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    
-    <!-- Sample Resources -->
-    
+
     <!-- MainWindow -->
-    <x:String x:Key="MainWindowTitle">MainWindow</x:String>
-    
+    <x:String x:Key="MainWindowTitle">FLAC Tag Editor</x:String>
+
     <!-- MainWindow / Form -->
     <x:Boolean x:Key="MainWindowExtendClientAreaToDecorationsHint">False</x:Boolean>
     <WindowDecorations x:Key="MainWindowDecorations">Full</WindowDecorations>
-    
+
     <!-- MainWindow / Size -->
-    <x:Double x:Key="MainWindowWidth">800</x:Double>
-    <x:Double x:Key="MainWindowHeight">450</x:Double>
-    <x:Double x:Key="MainWindowMaxWidth">800</x:Double>
-    <x:Double x:Key="MainWindowMaxHeight">450</x:Double>
-    <x:Double x:Key="MainWindowMinWidth">800</x:Double>
-    <x:Double x:Key="MainWindowMinHeight">450</x:Double>
+    <x:Double x:Key="MainWindowWidth">1280</x:Double>
+    <x:Double x:Key="MainWindowHeight">760</x:Double>
+    <x:Double x:Key="MainWindowMinWidth">900</x:Double>
+    <x:Double x:Key="MainWindowMinHeight">540</x:Double>
     <x:Boolean x:Key="MainWindowCanResize">True</x:Boolean>
-    <x:Boolean x:Key="MainWindowMaximize">True</x:Boolean>
-    <x:Boolean x:Key="MainWindowMinimize">True</x:Boolean>
-    
+
     <!-- MainWindow / Location -->
     <WindowStartupLocation x:Key="MainWindowStartupLocation">CenterScreen</WindowStartupLocation>
-    <x:Boolean x:Key="MainWindowTopmost">False</x:Boolean>    
-    
-    <!-- MainWindow / Color -->
-    <SolidColorBrush x:Key="MainWindowBackgroundColor" Color="#FF1E1E1E"/>
-    <SolidColorBrush x:Key="MainWindowBorderColor" Color="#FF000000"/>
+    <x:Boolean x:Key="MainWindowTopmost">False</x:Boolean>
 
-    
-    <!-- Control -->
-    <!-- Control / Text -->
-    <SolidColorBrush x:Key="TextColor" Color="White"/>
-    
+    <!-- MainWindow / Color Palette (Dark Base) -->
+    <SolidColorBrush x:Key="MainWindowBackgroundColor" Color="#FF1E1E1E"/>
+    <SolidColorBrush x:Key="MainWindowBorderColor" Color="#FF333333"/>
+    <SolidColorBrush x:Key="ToolbarBackgroundColor" Color="#FF252526"/>
+    <SolidColorBrush x:Key="DetailPaneBackgroundColor" Color="#FF232325"/>
+    <SolidColorBrush x:Key="CardBackgroundColor" Color="#FF2B2B2E"/>
+    <SolidColorBrush x:Key="StatusBarBackgroundColor" Color="#FF18181A"/>
+    <SolidColorBrush x:Key="SplitterColor" Color="#FF333337"/>
+    <SolidColorBrush x:Key="ReadOnlyFieldBackgroundColor" Color="#FF1B1B1D"/>
+    <SolidColorBrush x:Key="ReadOnlyFieldBorderColor" Color="#FF38383D"/>
+    <SolidColorBrush x:Key="TextColor" Color="#FFF3F3F3"/>
+    <SolidColorBrush x:Key="SecondaryTextColor" Color="#FFA6A6AE"/>
+    <SolidColorBrush x:Key="SectionHeaderColor" Color="#FF78B7FF"/>
+
+    <!-- Layout Sizes -->
+    <GridLength x:Key="DetailPaneInitialWidth">380</GridLength>
+    <x:Double x:Key="DetailPaneMinWidth">300</x:Double>
+    <x:Double x:Key="DetailPaneMaxWidth">640</x:Double>
+    <x:Double x:Key="ListPaneMinWidth">360</x:Double>
+    <x:Double x:Key="SplitterWidth">4</x:Double>
+    <x:Double x:Key="ArtworkContainerSize">200</x:Double>
+    <x:Double x:Key="LoadingProgressWidth">120</x:Double>
+    <x:Double x:Key="LoadingProgressHeight">4</x:Double>
+    <x:Double x:Key="CommentFieldMinHeight">64</x:Double>
+
+    <!-- DataGrid Column Widths -->
+    <DataGridLength x:Key="ColTrackWidth">64</DataGridLength>
+    <DataGridLength x:Key="ColTitleWidth">220</DataGridLength>
+    <DataGridLength x:Key="ColArtistWidth">180</DataGridLength>
+    <DataGridLength x:Key="ColAlbumWidth">200</DataGridLength>
+    <DataGridLength x:Key="ColAlbumArtistWidth">160</DataGridLength>
+    <DataGridLength x:Key="ColYearWidth">64</DataGridLength>
+    <DataGridLength x:Key="ColDurationWidth">76</DataGridLength>
+    <DataGridLength x:Key="ColFileNameWidth">220</DataGridLength>
+
+    <!-- Spacing / Borders / Typography -->
+    <Thickness x:Key="ToolbarPadding">12,8</Thickness>
+    <Thickness x:Key="StatusBarPadding">12,6</Thickness>
+    <Thickness x:Key="DetailPanePadding">16</Thickness>
+    <Thickness x:Key="HorizontalTextMargin">16,0</Thickness>
+    <Thickness x:Key="SectionMargin">0,14,0,6</Thickness>
+    <Thickness x:Key="FieldLabelMargin">0,6,0,2</Thickness>
+    <Thickness x:Key="BottomBorderThickness">0,0,0,1</Thickness>
+    <Thickness x:Key="TopBorderThickness">0,1,0,0</Thickness>
+    <Thickness x:Key="ThinBorderThickness">1</Thickness>
+    <CornerRadius x:Key="DefaultCornerRadius">4</CornerRadius>
+    <x:Double x:Key="ToolbarSpacing">8</x:Double>
+    <x:Double x:Key="DetailItemSpacing">8</x:Double>
+    <x:Double x:Key="SectionHeaderFontSize">13</x:Double>
+    <x:Double x:Key="LabelFontSize">11</x:Double>
+    <x:Double x:Key="BodyFontSize">12</x:Double>
+    <x:Double x:Key="StatusFontSize">12</x:Double>
+    <x:Double x:Key="PlaceholderFontSize">14</x:Double>
+
+    <!-- UI Labels -->
+    <x:String x:Key="OpenFolderButtonText">フォルダを開く</x:String>
+    <x:String x:Key="OpenFilesButtonText">ファイルを開く</x:String>
+    <x:String x:Key="EmptyListPlaceholderText">「フォルダを開く」または「ファイルを開く」からFLACファイルを読み込んでください</x:String>
+    <x:String x:Key="NoSelectionPlaceholderText">左の一覧からトラックを選択すると詳細タグが表示されます</x:String>
+    <x:String x:Key="NoArtworkPlaceholderText">No Artwork</x:String>
+
 </ResourceDictionary>

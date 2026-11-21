@@ -1,15 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:FLAC_Tag_Editor.ViewModels"
+        xmlns:models="using:FLAC_Tag_Editor.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="760"
         x:Class="FLAC_Tag_Editor.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="{DynamicResource MainWindowTitle}"
         Width="{DynamicResource MainWindowWidth}"
         Height="{DynamicResource MainWindowHeight}"
+        MinWidth="{DynamicResource MainWindowMinWidth}"
+        MinHeight="{DynamicResource MainWindowMinHeight}"
+        CanResize="{DynamicResource MainWindowCanResize}"
         Background="{DynamicResource MainWindowBackgroundColor}"
         WindowDecorations="{DynamicResource MainWindowDecorations}"
         WindowStartupLocation="{DynamicResource MainWindowStartupLocation}"
@@ -23,13 +27,301 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
-    
+
+    <Window.Styles>
+        <Style Selector="TextBlock.section-header">
+            <Setter Property="Foreground" Value="{DynamicResource SectionHeaderColor}"/>
+            <Setter Property="FontSize" Value="{DynamicResource SectionHeaderFontSize}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="{DynamicResource SectionMargin}"/>
+        </Style>
+        <Style Selector="TextBlock.field-label">
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextColor}"/>
+            <Setter Property="FontSize" Value="{DynamicResource LabelFontSize}"/>
+            <Setter Property="Margin" Value="{DynamicResource FieldLabelMargin}"/>
+        </Style>
+        <Style Selector="TextBox.readonly-field">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="FontSize" Value="{DynamicResource BodyFontSize}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Background" Value="{DynamicResource ReadOnlyFieldBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ReadOnlyFieldBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+        </Style>
+    </Window.Styles>
+
     <Design.DataContext>
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <TextBlock
-        Foreground="{DynamicResource TextColor}"
-        Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    <DockPanel LastChildFill="True">
+        <!-- 上部ツールバー -->
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource ToolbarBackgroundColor}"
+                BorderBrush="{DynamicResource MainWindowBorderColor}"
+                BorderThickness="{DynamicResource BottomBorderThickness}"
+                Padding="{DynamicResource ToolbarPadding}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            Spacing="{DynamicResource ToolbarSpacing}">
+                    <Button Content="{DynamicResource OpenFolderButtonText}"
+                            Command="{Binding OpenFolderCommand}"/>
+                    <Button Content="{DynamicResource OpenFilesButtonText}"
+                            Command="{Binding OpenFilesCommand}"/>
+                </StackPanel>
 
+                <TextBlock Grid.Column="1"
+                           Text="{Binding CurrentSourcePath}"
+                           Foreground="{DynamicResource SecondaryTextColor}"
+                           FontSize="{DynamicResource BodyFontSize}"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Margin="{DynamicResource HorizontalTextMargin}"
+                           ToolTip.Tip="{Binding CurrentSourcePath}"/>
+
+                <ProgressBar Grid.Column="2"
+                             IsIndeterminate="True"
+                             IsVisible="{Binding IsLoading}"
+                             Width="{DynamicResource LoadingProgressWidth}"
+                             Height="{DynamicResource LoadingProgressHeight}"
+                             VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- 下部ステータスバー -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource StatusBarBackgroundColor}"
+                BorderBrush="{DynamicResource MainWindowBorderColor}"
+                BorderThickness="{DynamicResource TopBorderThickness}"
+                Padding="{DynamicResource StatusBarPadding}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding StatusMessage}"
+                           Foreground="{DynamicResource TextColor}"
+                           FontSize="{DynamicResource StatusFontSize}"
+                           VerticalAlignment="Center"/>
+
+                <TextBlock Grid.Column="1"
+                           Text="{Binding SelectedTrack.FilePath, FallbackValue=''}"
+                           Foreground="{DynamicResource SecondaryTextColor}"
+                           FontSize="{DynamicResource StatusFontSize}"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Margin="{DynamicResource HorizontalTextMargin}"/>
+
+                <TextBlock Grid.Column="2"
+                           Text="{Binding TrackCountText}"
+                           Foreground="{DynamicResource SecondaryTextColor}"
+                           FontSize="{DynamicResource StatusFontSize}"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- 中央メイン領域（左：一覧DataGrid、右：詳細タグ表示） -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="{StaticResource ListPaneMinWidth}"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="{StaticResource DetailPaneInitialWidth}"
+                                  MinWidth="{StaticResource DetailPaneMinWidth}"
+                                  MaxWidth="{StaticResource DetailPaneMaxWidth}"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 左ペイン：FLACファイル一覧 -->
+            <Grid Grid.Column="0">
+                <DataGrid ItemsSource="{Binding Tracks}"
+                          SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserReorderColumns="True"
+                          CanUserResizeColumns="True"
+                          CanUserSortColumns="True"
+                          GridLinesVisibility="Horizontal"
+                          SelectionMode="Single"
+                          Background="{DynamicResource MainWindowBackgroundColor}">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="#"
+                                            Binding="{Binding TrackDisplay}"
+                                            Width="{StaticResource ColTrackWidth}"/>
+                        <DataGridTextColumn Header="タイトル"
+                                            Binding="{Binding Title}"
+                                            Width="{StaticResource ColTitleWidth}"/>
+                        <DataGridTextColumn Header="アーティスト"
+                                            Binding="{Binding Artist}"
+                                            Width="{StaticResource ColArtistWidth}"/>
+                        <DataGridTextColumn Header="アルバム"
+                                            Binding="{Binding Album}"
+                                            Width="{StaticResource ColAlbumWidth}"/>
+                        <DataGridTextColumn Header="アルバムアーティスト"
+                                            Binding="{Binding AlbumArtist}"
+                                            Width="{StaticResource ColAlbumArtistWidth}"/>
+                        <DataGridTextColumn Header="年"
+                                            Binding="{Binding YearDisplay}"
+                                            Width="{StaticResource ColYearWidth}"/>
+                        <DataGridTextColumn Header="時間"
+                                            Binding="{Binding DurationDisplay}"
+                                            Width="{StaticResource ColDurationWidth}"/>
+                        <DataGridTextColumn Header="ファイル名"
+                                            Binding="{Binding FileName}"
+                                            Width="{StaticResource ColFileNameWidth}"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- 未読み込み時プレースホルダー -->
+                <TextBlock Text="{DynamicResource EmptyListPlaceholderText}"
+                           IsVisible="{Binding !HasTracks}"
+                           Foreground="{DynamicResource SecondaryTextColor}"
+                           FontSize="{DynamicResource PlaceholderFontSize}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextAlignment="Center"
+                           IsHitTestVisible="False"/>
+            </Grid>
+
+            <!-- ペイン区切りスプリッター -->
+            <GridSplitter Grid.Column="1"
+                          Width="{DynamicResource SplitterWidth}"
+                          Background="{DynamicResource SplitterColor}"
+                          ResizeDirection="Columns"/>
+
+            <!-- 右ペイン：選択中トラックの詳細タグ表示 -->
+            <Border Grid.Column="2"
+                    Background="{DynamicResource DetailPaneBackgroundColor}">
+                <Grid>
+                    <!-- 未選択時プレースホルダー -->
+                    <TextBlock Text="{DynamicResource NoSelectionPlaceholderText}"
+                               IsVisible="{Binding !HasSelectedTrack}"
+                               Foreground="{DynamicResource SecondaryTextColor}"
+                               FontSize="{DynamicResource BodyFontSize}"
+                               TextWrapping="Wrap"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               TextAlignment="Center"
+                               Margin="{DynamicResource DetailPanePadding}"/>
+
+                    <!-- 選択中トラック詳細 -->
+                    <ScrollViewer IsVisible="{Binding HasSelectedTrack}"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="{DynamicResource DetailPanePadding}"
+                                    DataContext="{Binding SelectedTrack}"
+                                    x:DataType="vm:TrackItemViewModel">
+
+                            <!-- アートワーク表示 -->
+                            <StackPanel HorizontalAlignment="Center"
+                                        Spacing="{DynamicResource DetailItemSpacing}">
+                                <Border Width="{DynamicResource ArtworkContainerSize}"
+                                        Height="{DynamicResource ArtworkContainerSize}"
+                                        Background="{DynamicResource CardBackgroundColor}"
+                                        BorderBrush="{DynamicResource MainWindowBorderColor}"
+                                        BorderThickness="{DynamicResource ThinBorderThickness}"
+                                        CornerRadius="{DynamicResource DefaultCornerRadius}"
+                                        ClipToBounds="True">
+                                    <Grid>
+                                        <Image Source="{Binding ArtworkBitmap}"
+                                               Stretch="Uniform"
+                                               IsVisible="{Binding HasArtwork}"/>
+                                        <TextBlock Text="{DynamicResource NoArtworkPlaceholderText}"
+                                                   IsVisible="{Binding !HasArtwork}"
+                                                   Foreground="{DynamicResource SecondaryTextColor}"
+                                                   FontSize="{DynamicResource BodyFontSize}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Text="{Binding ArtworkInfoDisplay}"
+                                           Foreground="{DynamicResource SecondaryTextColor}"
+                                           FontSize="{DynamicResource LabelFontSize}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- 基本タグ -->
+                            <TextBlock Text="基本タグ" Classes="section-header"/>
+
+                            <TextBlock Text="タイトル" Classes="field-label"/>
+                            <TextBox Text="{Binding Title, Mode=OneWay}" Classes="readonly-field"/>
+
+                            <TextBlock Text="アーティスト" Classes="field-label"/>
+                            <TextBox Text="{Binding Artist, Mode=OneWay}" Classes="readonly-field"/>
+
+                            <TextBlock Text="アルバム" Classes="field-label"/>
+                            <TextBox Text="{Binding Album, Mode=OneWay}" Classes="readonly-field"/>
+
+                            <TextBlock Text="アルバムアーティスト" Classes="field-label"/>
+                            <TextBox Text="{Binding AlbumArtist, Mode=OneWay}" Classes="readonly-field"/>
+
+                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="{DynamicResource DetailItemSpacing}">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="トラック" Classes="field-label"/>
+                                    <TextBox Text="{Binding TrackDisplay, Mode=OneWay}" Classes="readonly-field"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="ディスク" Classes="field-label"/>
+                                    <TextBox Text="{Binding DiscDisplay, Mode=OneWay}" Classes="readonly-field"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="年" Classes="field-label"/>
+                                    <TextBox Text="{Binding YearDisplay, Mode=OneWay}" Classes="readonly-field"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="ジャンル" Classes="field-label"/>
+                            <TextBox Text="{Binding Genre, Mode=OneWay}" Classes="readonly-field"/>
+
+                            <TextBlock Text="コメント" Classes="field-label"/>
+                            <TextBox Text="{Binding Comment, Mode=OneWay}"
+                                     Classes="readonly-field"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     MinHeight="{DynamicResource CommentFieldMinHeight}"/>
+
+                            <!-- ファイル・音声情報 -->
+                            <TextBlock Text="ファイル・音声情報" Classes="section-header"/>
+
+                            <TextBlock Text="ファイル名" Classes="field-label"/>
+                            <TextBox Text="{Binding FileName, Mode=OneWay}" Classes="readonly-field"/>
+
+                            <TextBlock Text="フルパス" Classes="field-label"/>
+                            <TextBox Text="{Binding FilePath, Mode=OneWay}"
+                                     Classes="readonly-field"
+                                     TextWrapping="Wrap"/>
+
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="{DynamicResource DetailItemSpacing}">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="再生時間" Classes="field-label"/>
+                                    <TextBox Text="{Binding DurationDisplay, Mode=OneWay}" Classes="readonly-field"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="ファイルサイズ" Classes="field-label"/>
+                                    <TextBox Text="{Binding FileSizeDisplay, Mode=OneWay}" Classes="readonly-field"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="音声フォーマット" Classes="field-label"/>
+                            <TextBox Text="{Binding AudioSpecDisplay, Mode=OneWay}" Classes="readonly-field"/>
+
+                            <!-- 独自タグ (Vorbis Comment) -->
+                            <StackPanel IsVisible="{Binding HasCustomTags}">
+                                <TextBlock Text="独自タグ (Vorbis Comment)" Classes="section-header"/>
+                                <ItemsControl ItemsSource="{Binding CustomTags}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="models:CustomTagEntry">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Key}" Classes="field-label"/>
+                                                <TextBox Text="{Binding Value, Mode=OneWay}"
+                                                         Classes="readonly-field"
+                                                         TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </DockPanel>
 </Window>

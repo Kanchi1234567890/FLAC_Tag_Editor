@@ -2,6 +2,8 @@ using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using FLAC_Tag_Editor.Services.Implementations;
+using FLAC_Tag_Editor.Services.Interfaces;
 using FLAC_Tag_Editor.ViewModels;
 using FLAC_Tag_Editor.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +40,10 @@ public partial class App : Application
 
     private static void ConfigureServices(IServiceCollection services)
     {
+        // Services
+        services.AddSingleton<IFlacTagService, FlacTagService>();
+        services.AddSingleton<IFileDialogService, FileDialogService>();
+
         // ViewModels
         services.AddSingleton<MainWindowViewModel>();
 
