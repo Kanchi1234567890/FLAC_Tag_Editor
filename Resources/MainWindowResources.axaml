@@ -1,0 +1,36 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <!-- Sample Resources -->
+    
+    <!-- MainWindow -->
+    <x:String x:Key="MainWindowTitle">MainWindow</x:String>
+    
+    <!-- MainWindow / Form -->
+    <x:Boolean x:Key="MainWindowExtendClientAreaToDecorationsHint">False</x:Boolean>
+    <WindowDecorations x:Key="MainWindowDecorations">Full</WindowDecorations>
+    
+    <!-- MainWindow / Size -->
+    <x:Double x:Key="MainWindowWidth">800</x:Double>
+    <x:Double x:Key="MainWindowHeight">450</x:Double>
+    <x:Double x:Key="MainWindowMaxWidth">800</x:Double>
+    <x:Double x:Key="MainWindowMaxHeight">450</x:Double>
+    <x:Double x:Key="MainWindowMinWidth">800</x:Double>
+    <x:Double x:Key="MainWindowMinHeight">450</x:Double>
+    <x:Boolean x:Key="MainWindowCanResize">True</x:Boolean>
+    <x:Boolean x:Key="MainWindowMaximize">True</x:Boolean>
+    <x:Boolean x:Key="MainWindowMinimize">True</x:Boolean>
+    
+    <!-- MainWindow / Location -->
+    <WindowStartupLocation x:Key="MainWindowStartupLocation">CenterScreen</WindowStartupLocation>
+    <x:Boolean x:Key="MainWindowTopmost">False</x:Boolean>    
+    
+    <!-- MainWindow / Color -->
+    <SolidColorBrush x:Key="MainWindowBorderColor" Color="#FF000000"/>
+
+    
+    <!-- Control -->
+    <!-- Control / Text -->
+    <SolidColorBrush x:Key="TextColor" Color="White"/>
+    
+</ResourceDictionary>
