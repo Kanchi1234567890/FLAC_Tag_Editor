@@ -26,6 +26,7 @@
     <x:Boolean x:Key="MainWindowTopmost">False</x:Boolean>    
     
     <!-- MainWindow / Color -->
+    <SolidColorBrush x:Key="MainWindowBackgroundColor" Color="#FF1E1E1E"/>
     <SolidColorBrush x:Key="MainWindowBorderColor" Color="#FF000000"/>
 
     
