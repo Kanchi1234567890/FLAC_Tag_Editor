@@ -20,10 +20,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private const string OpenFilesDialogTitle = "FLACファイルを選択";
     private const string OpenArtworkDialogTitle = "アートワーク画像を選択";
     private const string InitialStatusMessage = "フォルダまたはFLACファイルを選択してください";
+    private static readonly TrackGridColumnKind[] DefaultGridColumns =
+    [
+        TrackGridColumnKind.Dirty,
+        TrackGridColumnKind.Track,
+        TrackGridColumnKind.Title,
+        TrackGridColumnKind.Artist,
+        TrackGridColumnKind.Album,
+        TrackGridColumnKind.AlbumArtist,
+        TrackGridColumnKind.Year,
+        TrackGridColumnKind.Duration,
+        TrackGridColumnKind.FileName
+    ];
 
     private readonly IFlacTagService? _flacTagService;
     private readonly IFileDialogService? _fileDialogService;
     private readonly IArtworkService? _artworkService;
+    private readonly IClipboardService? _clipboardService;
+    private readonly ITsvPasteService? _tsvPasteService;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _saveCts;
     private CancellationTokenSource? _artworkCts;
@@ -49,6 +63,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     private bool _isLoading;
 
     [ObservableProperty]
@@ -62,6 +77,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     private bool _isSaving;
 
     [ObservableProperty]
@@ -75,6 +91,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     private bool _isArtworkLoading;
 
     [ObservableProperty]
@@ -135,11 +152,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public MainWindowViewModel(
         IFlacTagService flacTagService,
         IFileDialogService fileDialogService,
-        IArtworkService artworkService)
+        IArtworkService artworkService,
+        IClipboardService clipboardService,
+        ITsvPasteService tsvPasteService)
     {
         _flacTagService = flacTagService ?? throw new ArgumentNullException(nameof(flacTagService));
         _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
         _artworkService = artworkService ?? throw new ArgumentNullException(nameof(artworkService));
+        _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
+        _tsvPasteService = tsvPasteService ?? throw new ArgumentNullException(nameof(tsvPasteService));
     }
 
     public ObservableCollection<TrackItemViewModel> Tracks { get; } = new();
@@ -169,6 +190,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool CanEditArtwork => !IsBusy && SelectedTrack is not null;
 
     private bool CanRemoveArtwork => !IsBusy && SelectedTrack is { HasArtwork: true };
+
+    private bool CanPasteTsv => !IsBusy && HasTracks;
 
     [RelayCommand(CanExecute = nameof(CanOpen))]
     private async Task OpenFolderAsync()
@@ -263,6 +286,100 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             target,
             ct => _artworkService.ResolveFromDropAsync(payload, ct),
             "ドロップされたアートワークを取得中...");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanPasteTsv))]
+    private async Task PasteTsvAsync(TsvPasteRequest? request)
+    {
+        if (_clipboardService is null || _tsvPasteService is null || Tracks.Count == 0)
+        {
+            return;
+        }
+
+        string? clipboardText;
+        try
+        {
+            clipboardText = await _clipboardService.GetTextAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"クリップボード読み取りエラー: {ex.Message}";
+            return;
+        }
+
+        var parsedRows = _tsvPasteService.Parse(clipboardText);
+        if (parsedRows.Count == 0)
+        {
+            StatusMessage = "クリップボードに貼り付け可能なテキストがありません";
+            return;
+        }
+
+        var (orderedTracks, startRowIndex, orderedColumns, startColumnIndex) = ResolvePasteTarget(request);
+        if (orderedTracks.Count == 0 || orderedColumns.Count == 0)
+        {
+            StatusMessage = "貼り付け対象のトラックまたは列がありません";
+            return;
+        }
+
+        var appliedCells = 0;
+        var skippedReadOnlyCells = 0;
+        var skippedInvalidCells = 0;
+        var truncatedRows = 0;
+        var truncatedCells = 0;
+        var affectedRows = new HashSet<int>();
+        var affectedColumns = new HashSet<int>();
+
+        for (var rowOffset = 0; rowOffset < parsedRows.Count; rowOffset++)
+        {
+            var targetRowIndex = startRowIndex + rowOffset;
+            if (targetRowIndex < 0 || targetRowIndex >= orderedTracks.Count)
+            {
+                truncatedRows += parsedRows.Count - rowOffset;
+                break;
+            }
+
+            var track = orderedTracks[targetRowIndex];
+            var sourceCells = parsedRows[rowOffset];
+
+            for (var colOffset = 0; colOffset < sourceCells.Count; colOffset++)
+            {
+                var targetColIndex = startColumnIndex + colOffset;
+                if (targetColIndex < 0 || targetColIndex >= orderedColumns.Count)
+                {
+                    truncatedCells += sourceCells.Count - colOffset;
+                    break;
+                }
+
+                var columnKind = orderedColumns[targetColIndex];
+                var outcome = track.ApplyGridCellValue(columnKind, sourceCells[colOffset]);
+                switch (outcome)
+                {
+                    case GridCellApplyResult.Applied:
+                        appliedCells++;
+                        affectedRows.Add(targetRowIndex);
+                        affectedColumns.Add(targetColIndex);
+                        break;
+
+                    case GridCellApplyResult.SkippedReadOnly:
+                        skippedReadOnlyCells++;
+                        break;
+
+                    case GridCellApplyResult.SkippedInvalid:
+                        skippedInvalidCells++;
+                        break;
+                }
+            }
+        }
+
+        RefreshDirtyState();
+        StatusMessage = BuildPasteStatusMessage(
+            affectedRows.Count,
+            affectedColumns.Count,
+            appliedCells,
+            skippedReadOnlyCells,
+            skippedInvalidCells,
+            truncatedRows,
+            truncatedCells);
     }
 
     [RelayCommand(CanExecute = nameof(CanSaveSelected))]
@@ -538,6 +655,109 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SelectArtworkCommand.NotifyCanExecuteChanged();
         RemoveArtworkCommand.NotifyCanExecuteChanged();
         DropArtworkCommand.NotifyCanExecuteChanged();
+        PasteTsvCommand.NotifyCanExecuteChanged();
+    }
+
+    private (
+        IReadOnlyList<TrackItemViewModel> OrderedTracks,
+        int StartRowIndex,
+        IReadOnlyList<TrackGridColumnKind> OrderedColumns,
+        int StartColumnIndex) ResolvePasteTarget(TsvPasteRequest? request)
+    {
+        var tracksByPath = new Dictionary<string, TrackItemViewModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in Tracks)
+        {
+            tracksByPath.TryAdd(item.FilePath, item);
+        }
+
+        var orderedTracks = new List<TrackItemViewModel>(Tracks.Count);
+        if (request is { OrderedFilePaths.Count: > 0 })
+        {
+            foreach (var path in request.OrderedFilePaths)
+            {
+                if (tracksByPath.TryGetValue(path, out var track))
+                {
+                    orderedTracks.Add(track);
+                }
+            }
+        }
+
+        int startRowIndex;
+        if (orderedTracks.Count > 0 && request is not null)
+        {
+            startRowIndex = Math.Clamp(request.StartRowIndex, 0, orderedTracks.Count - 1);
+        }
+        else
+        {
+            orderedTracks.AddRange(Tracks);
+            startRowIndex = SelectedTrack is not null
+                ? Math.Max(0, Tracks.IndexOf(SelectedTrack))
+                : 0;
+        }
+
+        IReadOnlyList<TrackGridColumnKind> orderedColumns;
+        int startColumnIndex;
+        if (request is { OrderedColumns.Count: > 0 })
+        {
+            orderedColumns = request.OrderedColumns;
+            startColumnIndex = Math.Clamp(request.StartColumnIndex, 0, orderedColumns.Count - 1);
+        }
+        else
+        {
+            orderedColumns = DefaultGridColumns;
+            startColumnIndex = Array.FindIndex(DefaultGridColumns, kind => kind.IsEditable());
+            if (startColumnIndex < 0)
+            {
+                startColumnIndex = 0;
+            }
+        }
+
+        return (orderedTracks, startRowIndex, orderedColumns, startColumnIndex);
+    }
+
+    private static string BuildPasteStatusMessage(
+        int affectedRowCount,
+        int affectedColumnCount,
+        int appliedCells,
+        int skippedReadOnlyCells,
+        int skippedInvalidCells,
+        int truncatedRows,
+        int truncatedCells)
+    {
+        var notes = new List<string>(4);
+        if (skippedReadOnlyCells > 0)
+        {
+            notes.Add($"読み取り専用 {skippedReadOnlyCells} 件スキップ");
+        }
+
+        if (skippedInvalidCells > 0)
+        {
+            notes.Add($"書式不正 {skippedInvalidCells} 件スキップ");
+        }
+
+        if (truncatedRows > 0)
+        {
+            notes.Add($"範囲外 {truncatedRows} 行切り捨て");
+        }
+
+        if (truncatedCells > 0)
+        {
+            notes.Add($"列超過 {truncatedCells} セル切り捨て");
+        }
+
+        if (appliedCells == 0)
+        {
+            return notes.Count > 0
+                ? $"貼り付け可能な編集セルがありませんでした（{string.Join("・", notes)}）"
+                : "貼り付け可能な編集セルがありませんでした";
+        }
+
+        if (notes.Count > 0)
+        {
+            return $"{affectedRowCount} 行 × {affectedColumnCount} 列（{appliedCells} セル）を貼り付けました（{string.Join("・", notes)}・未保存）";
+        }
+
+        return $"{affectedRowCount} 行 × {affectedColumnCount} 列（{appliedCells} セル）を貼り付けました（未保存）";
     }
 
     private static string BuildArtworkAppliedMessage(string fileName, ArtworkImage artwork)

@@ -106,10 +106,13 @@
     <x:String x:Key="SaveAllButtonText">すべて保存</x:String>
     <x:String x:Key="RevertSelectedButtonText">変更を破棄</x:String>
     <x:String x:Key="RevertAllButtonText">すべて破棄</x:String>
+    <x:String x:Key="PasteTsvButtonText">貼り付け</x:String>
+    <x:String x:Key="PasteTsvContextMenuText">クリップボードから貼り付け (Ctrl+V)</x:String>
     <x:String x:Key="SaveSelectedToolTip">選択中のトラックを保存 (Ctrl+S)</x:String>
     <x:String x:Key="SaveAllToolTip">変更のあるすべてのトラックを保存 (Ctrl+Shift+S)</x:String>
     <x:String x:Key="RevertSelectedToolTip">選択中のトラックの未保存変更を元に戻す</x:String>
     <x:String x:Key="RevertAllToolTip">すべての未保存変更を元に戻す</x:String>
+    <x:String x:Key="PasteTsvToolTip">クリップボードのタブ区切りテキストを選択セルから一括貼り付け (Ctrl+V)</x:String>
     <x:String x:Key="SelectArtworkButtonText">画像を選択...</x:String>
     <x:String x:Key="RemoveArtworkButtonText">削除</x:String>
     <x:String x:Key="SelectArtworkToolTip">ローカル画像ファイルからアートワークを設定（JPEG/PNG以外も自動変換）</x:String>

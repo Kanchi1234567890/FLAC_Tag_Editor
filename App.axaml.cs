@@ -44,6 +44,8 @@ public partial class App : Application
         services.AddSingleton<IFlacTagService, FlacTagService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
         services.AddSingleton<IArtworkService, ArtworkService>();
+        services.AddSingleton<IClipboardService, ClipboardService>();
+        services.AddSingleton<ITsvPasteService, TsvPasteService>();
 
         // ViewModels
         services.AddSingleton<MainWindowViewModel>();

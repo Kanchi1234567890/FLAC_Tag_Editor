@@ -127,6 +127,16 @@
                     <Button Content="{DynamicResource RevertAllButtonText}"
                             Command="{Binding RevertAllCommand}"
                             ToolTip.Tip="{DynamicResource RevertAllToolTip}"/>
+
+                    <Border Width="{DynamicResource ToolbarSeparatorWidth}"
+                            Height="{DynamicResource ToolbarSeparatorHeight}"
+                            Background="{DynamicResource MainWindowBorderColor}"
+                            Margin="{DynamicResource ToolbarSeparatorMargin}"
+                            VerticalAlignment="Center"/>
+
+                    <Button Content="{DynamicResource PasteTsvButtonText}"
+                            Command="{Binding #TracksDataGrid.(views:DataGridPasteBehavior.TriggerPasteCommand)}"
+                            ToolTip.Tip="{DynamicResource PasteTsvToolTip}"/>
                 </StackPanel>
 
                 <TextBlock Grid.Column="1"
@@ -198,7 +208,8 @@
 
             <!-- 左ペイン：FLACファイル一覧 -->
             <Grid Grid.Column="0">
-                <DataGrid ItemsSource="{Binding Tracks}"
+                <DataGrid x:Name="TracksDataGrid"
+                          ItemsSource="{Binding Tracks}"
                           SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
                           AutoGenerateColumns="False"
                           IsReadOnly="False"
@@ -207,12 +218,20 @@
                           CanUserSortColumns="True"
                           GridLinesVisibility="Horizontal"
                           SelectionMode="Single"
-                          Background="{DynamicResource MainWindowBackgroundColor}">
+                          Background="{DynamicResource MainWindowBackgroundColor}"
+                          views:DataGridPasteBehavior.PasteCommand="{Binding PasteTsvCommand}">
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="{DynamicResource PasteTsvContextMenuText}"
+                                      Command="{Binding #TracksDataGrid.(views:DataGridPasteBehavior.TriggerPasteCommand)}"/>
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header=""
                                                 Width="{StaticResource ColDirtyWidth}"
                                                 IsReadOnly="True"
                                                 CanUserResize="False"
+                                                views:DataGridPasteBehavior.ColumnKind="Dirty"
                                                 SortMemberPath="IsDirty">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate x:DataType="vm:TrackItemViewModel">
@@ -227,34 +246,50 @@
                         <DataGridTextColumn Header="#"
                                             Binding="{Binding TrackDisplay, Mode=TwoWay}"
                                             Width="{StaticResource ColTrackWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="Track"
+                                            SortMemberPath="TrackNumber"
                                             IsReadOnly="False"/>
                         <DataGridTextColumn Header="タイトル"
                                             Binding="{Binding Title, Mode=TwoWay}"
                                             Width="{StaticResource ColTitleWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="Title"
+                                            SortMemberPath="Title"
                                             IsReadOnly="False"/>
                         <DataGridTextColumn Header="アーティスト"
                                             Binding="{Binding Artist, Mode=TwoWay}"
                                             Width="{StaticResource ColArtistWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="Artist"
+                                            SortMemberPath="Artist"
                                             IsReadOnly="False"/>
                         <DataGridTextColumn Header="アルバム"
                                             Binding="{Binding Album, Mode=TwoWay}"
                                             Width="{StaticResource ColAlbumWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="Album"
+                                            SortMemberPath="Album"
                                             IsReadOnly="False"/>
                         <DataGridTextColumn Header="アルバムアーティスト"
                                             Binding="{Binding AlbumArtist, Mode=TwoWay}"
                                             Width="{StaticResource ColAlbumArtistWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="AlbumArtist"
+                                            SortMemberPath="AlbumArtist"
                                             IsReadOnly="False"/>
                         <DataGridTextColumn Header="年"
                                             Binding="{Binding YearText, Mode=TwoWay}"
                                             Width="{StaticResource ColYearWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="Year"
+                                            SortMemberPath="Year"
                                             IsReadOnly="False"/>
                         <DataGridTextColumn Header="時間"
                                             Binding="{Binding DurationDisplay}"
                                             Width="{StaticResource ColDurationWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="Duration"
+                                            SortMemberPath="Duration"
                                             IsReadOnly="True"/>
                         <DataGridTextColumn Header="ファイル名"
                                             Binding="{Binding FileName}"
                                             Width="{StaticResource ColFileNameWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="FileName"
+                                            SortMemberPath="FileName"
                                             IsReadOnly="True"/>
                     </DataGrid.Columns>
                 </DataGrid>
