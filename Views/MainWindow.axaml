@@ -138,6 +138,40 @@
         <Style Selector="Border.artwork-drop-target.drag-over Border.artwork-drop-overlay">
             <Setter Property="IsVisible" Value="True"/>
         </Style>
+        <Style Selector="ListBox.artwork-thumbnails">
+            <Setter Property="Background" Value="{DynamicResource ReadOnlyFieldBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MainWindowBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+            <Setter Property="Padding" Value="{DynamicResource ArtworkThumbListPadding}"/>
+        </Style>
+        <Style Selector="ListBox.artwork-thumbnails ListBoxItem">
+            <Setter Property="Padding" Value="{DynamicResource ArtworkThumbItemPadding}"/>
+            <Setter Property="Margin" Value="{DynamicResource ArtworkThumbItemMargin}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MainWindowBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundColor}"/>
+        </Style>
+        <Style Selector="ListBox.artwork-thumbnails ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ArtworkThumbHoverBackgroundColor}"/>
+        </Style>
+        <Style Selector="ListBox.artwork-thumbnails ListBoxItem:selected">
+            <Setter Property="BorderBrush" Value="{DynamicResource ArtworkThumbSelectedBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource DropHighlightBorderThickness}"/>
+            <Setter Property="Background" Value="{DynamicResource ArtworkThumbSelectedBackgroundColor}"/>
+        </Style>
+        <Style Selector="ListBox.artwork-thumbnails ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.sync-artwork-button">
+            <Setter Property="Background" Value="{DynamicResource SyncButtonBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SyncButtonBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="Padding" Value="{DynamicResource ArtworkActionButtonPadding}"/>
+            <Setter Property="MinHeight" Value="{DynamicResource CompactButtonMinHeight}"/>
+            <Setter Property="FontSize" Value="{DynamicResource LabelFontSize}"/>
+        </Style>
     </Window.Styles>
 
     <Design.DataContext>
@@ -649,10 +683,12 @@
                             <MenuItem Header="{DynamicResource PasteTsvContextMenuText}"
                                       Command="{Binding #TracksDataGrid.(views:DataGridPasteBehavior.TriggerPasteCommand)}"/>
                             <Separator/>
-                            <MenuItem Header="{DynamicResource SelectArtworkContextMenuText}"
-                                      Command="{Binding SelectArtworkCommand}"/>
-                            <MenuItem Header="{DynamicResource RemoveArtworkContextMenuText}"
-                                      Command="{Binding RemoveArtworkCommand}"/>
+                            <MenuItem Header="{DynamicResource AddArtworkContextMenuText}"
+                                      Command="{Binding AddArtworkCommand}"/>
+                            <MenuItem Header="{DynamicResource SyncArtworksContextMenuText}"
+                                      Command="{Binding SyncArtworksToSelectionCommand}"/>
+                            <MenuItem Header="{DynamicResource ClearAllArtworksContextMenuText}"
+                                      Command="{Binding ClearAllArtworksCommand}"/>
                             <Separator/>
                             <MenuItem Header="{DynamicResource SaveSelectedContextMenuText}"
                                       Command="{Binding SaveSelectedCommand}"/>
@@ -699,16 +735,17 @@
                                                 IsReadOnly="True"
                                                 CanUserResize="False"
                                                 views:DataGridPasteBehavior.ColumnKind="Artwork"
-                                                SortMemberPath="HasArtworkData">
+                                                SortMemberPath="ArtworkCount">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate x:DataType="vm:TrackItemViewModel">
                                     <TextBlock Text="{Binding ArtworkIndicator}"
                                                IsVisible="{Binding HasArtworkData}"
                                                Foreground="{DynamicResource ArtworkIndicatorColor}"
                                                FontSize="{DynamicResource BodyFontSize}"
-                                               HorizontalAlignment="Center"
+                                               HorizontalAlignment="Left"
                                                VerticalAlignment="Center"
-                                               ToolTip.Tip="{DynamicResource ArtworkIndicatorToolTip}"/>
+                                               Margin="{DynamicResource ArtworkCellMargin}"
+                                               ToolTip.Tip="{Binding ArtworkToolTipText}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -862,7 +899,7 @@
                                         x:DataType="vm:TrackItemViewModel">
 
                                 <!-- アートワーク表示・設定（D&D対応） -->
-                                <StackPanel HorizontalAlignment="Center"
+                                <StackPanel HorizontalAlignment="Stretch"
                                             Spacing="{DynamicResource DetailItemSpacing}">
                                     <Border IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMultipleSelectedTracks}"
                                             Background="{DynamicResource SelectionBadgeBackgroundColor}"
@@ -875,10 +912,12 @@
                                                    Foreground="{DynamicResource SectionHeaderColor}"
                                                    FontSize="{DynamicResource LabelFontSize}"
                                                    FontWeight="SemiBold"
-                                                   TextAlignment="Center"/>
+                                                   TextAlignment="Center"
+                                                   TextWrapping="Wrap"/>
                                     </Border>
                                     <Border Width="{DynamicResource ArtworkContainerSize}"
                                             Height="{DynamicResource ArtworkContainerSize}"
+                                            HorizontalAlignment="Center"
                                             Background="{DynamicResource CardBackgroundColor}"
                                             CornerRadius="{DynamicResource DefaultCornerRadius}"
                                             ClipToBounds="True"
@@ -913,6 +952,101 @@
                                             </Border>
                                         </Grid>
                                     </Border>
+
+                                    <!-- 複数アートワーク切替・並び順操作バー -->
+                                    <Grid IsVisible="{Binding HasArtworkData}"
+                                          ColumnDefinitions="Auto,*,Auto">
+                                        <StackPanel Grid.Column="0"
+                                                    Orientation="Horizontal"
+                                                    Spacing="{DynamicResource SmallItemSpacing}"
+                                                    VerticalAlignment="Center">
+                                            <Button Content="{DynamicResource ArtworkPrevButtonText}"
+                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SelectPreviousArtworkCommand}"
+                                                    ToolTip.Tip="{DynamicResource ArtworkPrevToolTip}"
+                                                    Width="{DynamicResource ArtworkNavButtonWidth}"
+                                                    MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
+                                                    Padding="{DynamicResource ArtworkNavButtonPadding}"
+                                                    FontSize="{DynamicResource LabelFontSize}"
+                                                    HorizontalContentAlignment="Center"/>
+                                            <TextBlock Text="{Binding SelectedArtworkPositionText}"
+                                                       Foreground="{DynamicResource TextColor}"
+                                                       FontSize="{DynamicResource LabelFontSize}"
+                                                       FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"/>
+                                            <Button Content="{DynamicResource ArtworkNextButtonText}"
+                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SelectNextArtworkCommand}"
+                                                    ToolTip.Tip="{DynamicResource ArtworkNextToolTip}"
+                                                    Width="{DynamicResource ArtworkNavButtonWidth}"
+                                                    MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
+                                                    Padding="{DynamicResource ArtworkNavButtonPadding}"
+                                                    FontSize="{DynamicResource LabelFontSize}"
+                                                    HorizontalContentAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2"
+                                                    Orientation="Horizontal"
+                                                    Spacing="{DynamicResource SmallItemSpacing}"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="{DynamicResource ArtworkOrderLabelText}"
+                                                       Foreground="{DynamicResource SecondaryTextColor}"
+                                                       FontSize="{DynamicResource LabelFontSize}"
+                                                       VerticalAlignment="Center"/>
+                                            <Button Content="{DynamicResource ArtworkMoveLeftButtonText}"
+                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).MoveArtworkLeftCommand}"
+                                                    ToolTip.Tip="{DynamicResource ArtworkMoveLeftToolTip}"
+                                                    Width="{DynamicResource ArtworkNavButtonWidth}"
+                                                    MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
+                                                    Padding="{DynamicResource ArtworkNavButtonPadding}"
+                                                    FontSize="{DynamicResource LabelFontSize}"
+                                                    HorizontalContentAlignment="Center"/>
+                                            <Button Content="{DynamicResource ArtworkMoveRightButtonText}"
+                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).MoveArtworkRightCommand}"
+                                                    ToolTip.Tip="{DynamicResource ArtworkMoveRightToolTip}"
+                                                    Width="{DynamicResource ArtworkNavButtonWidth}"
+                                                    MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
+                                                    Padding="{DynamicResource ArtworkNavButtonPadding}"
+                                                    FontSize="{DynamicResource LabelFontSize}"
+                                                    HorizontalContentAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- サムネイル一覧（横スクロール） -->
+                                    <ListBox IsVisible="{Binding HasArtworkData}"
+                                             Classes="artwork-thumbnails"
+                                             Height="{DynamicResource ArtworkThumbListHeight}"
+                                             ItemsSource="{Binding Artworks}"
+                                             SelectedItem="{Binding SelectedArtwork, Mode=TwoWay}"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                             ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal"/>
+                                            </ItemsPanelTemplate>
+                                        </ListBox.ItemsPanel>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ArtworkItemViewModel">
+                                                <StackPanel Width="{DynamicResource ArtworkThumbItemWidth}"
+                                                            Spacing="{DynamicResource ArtworkThumbContentSpacing}"
+                                                            HorizontalAlignment="Center"
+                                                            ToolTip.Tip="{Binding ThumbnailToolTipText}">
+                                                    <Border Width="{DynamicResource ArtworkThumbImageSize}"
+                                                            Height="{DynamicResource ArtworkThumbImageSize}"
+                                                            Background="{DynamicResource ReadOnlyFieldBackgroundColor}"
+                                                            CornerRadius="{DynamicResource DefaultCornerRadius}"
+                                                            ClipToBounds="True"
+                                                            HorizontalAlignment="Center">
+                                                        <Image Source="{Binding PreviewBitmap}"
+                                                               Stretch="Uniform"/>
+                                                    </Border>
+                                                    <TextBlock Text="{Binding ThumbnailLabel}"
+                                                               Foreground="{DynamicResource SecondaryTextColor}"
+                                                               FontSize="{DynamicResource SmallLabelFontSize}"
+                                                               HorizontalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+
                                     <TextBlock Text="{Binding ArtworkInfoDisplay}"
                                                Foreground="{DynamicResource SecondaryTextColor}"
                                                FontSize="{DynamicResource LabelFontSize}"
@@ -924,21 +1058,75 @@
                                                TextWrapping="Wrap"
                                                TextAlignment="Center"
                                                HorizontalAlignment="Center"/>
-                                    <StackPanel Orientation="Horizontal"
-                                                HorizontalAlignment="Center"
-                                                Spacing="{DynamicResource DetailItemSpacing}">
-                                        <Button Content="{DynamicResource SelectArtworkButtonText}"
-                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SelectArtworkCommand}"
-                                                ToolTip.Tip="{DynamicResource SelectArtworkToolTip}"
+
+                                    <!-- アートワーク操作ボタン群 -->
+                                    <WrapPanel Orientation="Horizontal"
+                                               HorizontalAlignment="Center"
+                                               ItemSpacing="{DynamicResource SmallItemSpacing}"
+                                               LineSpacing="{DynamicResource SmallItemSpacing}">
+                                        <Button Content="{DynamicResource AddArtworkButtonText}"
+                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).AddArtworkCommand}"
+                                                ToolTip.Tip="{DynamicResource AddArtworkToolTip}"
                                                 Padding="{DynamicResource ArtworkActionButtonPadding}"
                                                 MinHeight="{DynamicResource CompactButtonMinHeight}"
                                                 FontSize="{DynamicResource LabelFontSize}"/>
-                                        <Button Content="{DynamicResource RemoveArtworkButtonText}"
-                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).RemoveArtworkCommand}"
-                                                ToolTip.Tip="{DynamicResource RemoveArtworkToolTip}"
+                                        <Button Content="{DynamicResource ReplaceArtworkButtonText}"
+                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ReplaceArtworkCommand}"
+                                                ToolTip.Tip="{DynamicResource ReplaceArtworkToolTip}"
                                                 Padding="{DynamicResource ArtworkActionButtonPadding}"
                                                 MinHeight="{DynamicResource CompactButtonMinHeight}"
                                                 FontSize="{DynamicResource LabelFontSize}"/>
+                                        <Button Content="{DynamicResource RemoveSelectedArtworkButtonText}"
+                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).RemoveSelectedArtworkCommand}"
+                                                ToolTip.Tip="{DynamicResource RemoveSelectedArtworkToolTip}"
+                                                Padding="{DynamicResource ArtworkActionButtonPadding}"
+                                                MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                FontSize="{DynamicResource LabelFontSize}"/>
+                                        <Button Content="{DynamicResource ClearAllArtworksButtonText}"
+                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ClearAllArtworksCommand}"
+                                                ToolTip.Tip="{DynamicResource ClearAllArtworksToolTip}"
+                                                Padding="{DynamicResource ArtworkActionButtonPadding}"
+                                                MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                FontSize="{DynamicResource LabelFontSize}"/>
+                                    </WrapPanel>
+
+                                    <!-- 複数選択時：現在の構成を選択中すべてへ同期 -->
+                                    <Button Content="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SyncArtworksButtonText}"
+                                            Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SyncArtworksToSelectionCommand}"
+                                            ToolTip.Tip="{DynamicResource SyncArtworksToolTip}"
+                                            IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMultipleSelectedTracks}"
+                                            Classes="sync-artwork-button"
+                                            HorizontalAlignment="Center"/>
+
+                                    <!-- 選択中アートワークの種別・説明編集 -->
+                                    <StackPanel IsVisible="{Binding HasSelectedArtwork}"
+                                                Margin="{DynamicResource ArtworkMetadataMargin}"
+                                                Spacing="{DynamicResource SmallItemSpacing}">
+                                        <StackPanel DataContext="{Binding SelectedArtwork}"
+                                                    x:DataType="vm:ArtworkItemViewModel"
+                                                    IsEnabled="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).CanEditSingleTrackArtworkDetails}">
+                                            <TextBlock Text="{DynamicResource ArtworkTypeLabelText}" Classes="field-label"/>
+                                            <ComboBox ItemsSource="{Binding PictureTypeOptions}"
+                                                      SelectedItem="{Binding SelectedPictureTypeOption, Mode=TwoWay}"
+                                                      HorizontalAlignment="Stretch"
+                                                      FontSize="{DynamicResource BodyFontSize}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:ArtworkPictureTypeOption">
+                                                        <TextBlock Text="{Binding DisplayName}"/>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+
+                                            <TextBlock Text="{DynamicResource ArtworkDescriptionLabelText}" Classes="field-label"/>
+                                            <TextBox Text="{Binding Description, Mode=TwoWay}"
+                                                     PlaceholderText="{DynamicResource ArtworkDescriptionPlaceholder}"
+                                                     Classes="editable-field"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{DynamicResource ArtworkMultiSelectReadOnlyHintText}"
+                                                   IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMultipleSelectedTracks}"
+                                                   Foreground="{DynamicResource SecondaryTextColor}"
+                                                   FontSize="{DynamicResource SmallLabelFontSize}"
+                                                   TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </StackPanel>
 

@@ -21,8 +21,9 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     private const string AppendFolderDialogTitle = "追加するFLACフォルダを選択";
     private const string OpenFilesDialogTitle = "FLACファイルを選択";
     private const string AppendFilesDialogTitle = "追加するFLACファイルを選択";
-    private const string OpenArtworkDialogTitle = "アートワーク画像を選択";
-    private const string SingleArtworkDropOverlayText = "ここにドロップして設定";
+    private const string AddArtworkDialogTitle = "追加するアートワーク画像を選択";
+    private const string ReplaceArtworkDialogTitle = "差し替えるアートワーク画像を選択";
+    private const string SingleArtworkDropOverlayText = "ここにドロップして追加";
     private const string DefaultArtworkLoadingMessage = "アートワークを読み込み中...";
     private const string DropArtworkLoadingMessage = "ドロップされたアートワークを取得中...";
     private const string InitialStatusMessage = "フォルダまたはFLACファイルを選択してください";
@@ -63,15 +64,24 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedTrack))]
+    [NotifyPropertyChangedFor(nameof(CanEditSingleTrackArtworkDetails))]
     [NotifyCanExecuteChangedFor(nameof(SaveSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
-    [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
-    [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveSelectedArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearAllArtworksCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SyncArtworksToSelectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SelectPreviousArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SelectNextArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveArtworkLeftCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveArtworkRightCommand))]
     private TrackItemViewModel? _selectedTrack;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusy))]
+    [NotifyPropertyChangedFor(nameof(CanEditSingleTrackArtworkDetails))]
     [NotifyCanExecuteChangedFor(nameof(OpenFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(AppendFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenFilesCommand))]
@@ -80,15 +90,21 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(SaveAllCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertAllCommand))]
-    [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
-    [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveSelectedArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearAllArtworksCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SyncArtworksToSelectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveArtworkLeftCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveArtworkRightCommand))]
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
     private bool _isLoading;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusy))]
+    [NotifyPropertyChangedFor(nameof(CanEditSingleTrackArtworkDetails))]
     [NotifyCanExecuteChangedFor(nameof(OpenFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(AppendFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenFilesCommand))]
@@ -97,15 +113,21 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(SaveAllCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertAllCommand))]
-    [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
-    [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveSelectedArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearAllArtworksCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SyncArtworksToSelectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveArtworkLeftCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveArtworkRightCommand))]
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
     private bool _isSaving;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusy))]
+    [NotifyPropertyChangedFor(nameof(CanEditSingleTrackArtworkDetails))]
     [NotifyCanExecuteChangedFor(nameof(OpenFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(AppendFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenFilesCommand))]
@@ -114,9 +136,14 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(SaveAllCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertAllCommand))]
-    [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
-    [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveSelectedArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearAllArtworksCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SyncArtworksToSelectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveArtworkLeftCommand))]
+    [NotifyCanExecuteChangedFor(nameof(MoveArtworkRightCommand))]
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
     private bool _isArtworkLoading;
@@ -237,12 +264,18 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         : string.Empty;
 
     public string ArtworkTargetSummaryText => HasMultipleSelectedTracks
-        ? $"選択中 {_selectedTrackCount} 件のトラックに一括適用"
+        ? $"選択中 {_selectedTrackCount} 件（追加・全削除・同期が一括適用）"
         : string.Empty;
 
     public string ArtworkDropOverlayText => HasMultipleSelectedTracks
-        ? $"ここにドロップして {_selectedTrackCount} 件に設定"
+        ? $"ここにドロップして {_selectedTrackCount} 件に追加"
         : SingleArtworkDropOverlayText;
+
+    public string SyncArtworksButtonText => HasMultipleSelectedTracks
+        ? $"選択中 {_selectedTrackCount} 件へ同期"
+        : string.Empty;
+
+    public bool CanEditSingleTrackArtworkDetails => !IsBusy && HasSelectedTrack && !HasMultipleSelectedTracks;
 
     public bool HasMixedArtworkInSelection => _hasMixedArtworkInSelection;
 
@@ -270,7 +303,23 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     private bool CanEditArtwork => !IsBusy && _selectedTrackCount > 0;
 
-    private bool CanRemoveArtwork => !IsBusy && _hasAnySelectedArtworkTrack;
+    private bool CanEditSingleArtworkSlot =>
+        !IsBusy && !HasMultipleSelectedTracks && SelectedTrack is { HasSelectedArtwork: true };
+
+    private bool CanClearAllArtworks => !IsBusy && _hasAnySelectedArtworkTrack;
+
+    private bool CanSyncArtworksToSelection =>
+        !IsBusy && HasMultipleSelectedTracks && SelectedTrack is not null;
+
+    private bool CanSelectPreviousArtwork => SelectedTrack is { CanSelectPreviousArtwork: true };
+
+    private bool CanSelectNextArtwork => SelectedTrack is { CanSelectNextArtwork: true };
+
+    private bool CanMoveArtworkLeft =>
+        !IsBusy && !HasMultipleSelectedTracks && SelectedTrack is { CanMoveSelectedArtworkLeft: true };
+
+    private bool CanMoveArtworkRight =>
+        !IsBusy && !HasMultipleSelectedTracks && SelectedTrack is { CanMoveSelectedArtworkRight: true };
 
     private bool CanPasteTsv => !IsBusy && HasTracks;
 
@@ -416,7 +465,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     }
 
     [RelayCommand(CanExecute = nameof(CanEditArtwork))]
-    private async Task SelectArtworkAsync()
+    private async Task AddArtworkAsync()
     {
         var targets = GetSelectedTracksSnapshot();
         if (_fileDialogService is null || _artworkService is null || targets.Count == 0)
@@ -424,22 +473,60 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             return;
         }
 
-        var imagePath = await _fileDialogService.OpenImageFileAsync(OpenArtworkDialogTitle);
+        var imagePaths = await _fileDialogService.OpenImageFilesAsync(AddArtworkDialogTitle);
+        if (imagePaths.Count == 0)
+        {
+            return;
+        }
+
+        await AddArtworksFromFilesCoreAsync(targets, imagePaths);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEditSingleArtworkSlot))]
+    private async Task ReplaceArtworkAsync()
+    {
+        if (_fileDialogService is null || _artworkService is null || HasMultipleSelectedTracks)
+        {
+            return;
+        }
+
+        var target = SelectedTrack;
+        if (target is null || !target.HasSelectedArtwork)
+        {
+            return;
+        }
+
+        var imagePath = await _fileDialogService.OpenImageFileAsync(ReplaceArtworkDialogTitle);
         if (string.IsNullOrWhiteSpace(imagePath))
         {
             return;
         }
 
-        await ApplyArtworkCoreAsync(
-            targets,
+        await ReplaceSingleArtworkCoreAsync(
+            target,
             ct => _artworkService.LoadFromFileAsync(imagePath, ct),
-            targets.Count == 1
-                ? DefaultArtworkLoadingMessage
-                : $"{targets.Count} 件のトラック用アートワークを読み込み中...");
+            DefaultArtworkLoadingMessage);
     }
 
-    [RelayCommand(CanExecute = nameof(CanRemoveArtwork))]
-    private void RemoveArtwork()
+    [RelayCommand(CanExecute = nameof(CanEditSingleArtworkSlot))]
+    private void RemoveSelectedArtwork()
+    {
+        if (HasMultipleSelectedTracks || SelectedTrack is not { } target)
+        {
+            return;
+        }
+
+        if (!target.RemoveSelectedArtwork())
+        {
+            return;
+        }
+
+        RefreshDirtyState();
+        StatusMessage = $"{target.FileName} のアートワークを 1 枚削除しました（残り {target.ArtworkCount} 枚・未保存）";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearAllArtworks))]
+    private void ClearAllArtworks()
     {
         var targets = GetSelectedTracksSnapshot();
         var removableTargets = targets.Where(t => t.HasArtworkData).ToList();
@@ -453,7 +540,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         {
             foreach (var target in removableTargets)
             {
-                target.RemoveArtwork();
+                target.ClearArtworks();
             }
         }
         finally
@@ -465,16 +552,110 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         var skippedCount = targets.Count - removableTargets.Count;
         if (targets.Count == 1)
         {
-            StatusMessage = $"{removableTargets[0].FileName} のアートワークを削除しました（未保存）";
+            StatusMessage = $"{removableTargets[0].FileName} のアートワークをすべて削除しました（未保存）";
         }
         else if (skippedCount > 0)
         {
-            StatusMessage = $"{removableTargets.Count} 件のトラックからアートワークを削除しました（アートワークなし {skippedCount} 件・未保存）";
+            StatusMessage = $"{removableTargets.Count} 件のトラックからアートワークを全削除しました（アートワークなし {skippedCount} 件・未保存）";
         }
         else
         {
-            StatusMessage = $"{removableTargets.Count} 件のトラックからアートワークを削除しました（未保存）";
+            StatusMessage = $"{removableTargets.Count} 件のトラックからアートワークを全削除しました（未保存）";
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSyncArtworksToSelection))]
+    private void SyncArtworksToSelection()
+    {
+        var targets = GetSelectedTracksSnapshot();
+        if (targets.Count <= 1 || SelectedTrack is not { } sourceTrack || !targets.Contains(sourceTrack))
+        {
+            return;
+        }
+
+        var snapshot = sourceTrack.GetEditedArtworksSnapshot();
+        var updatedCount = 0;
+
+        _isBatchUpdatingTracks = true;
+        try
+        {
+            foreach (var target in targets)
+            {
+                if (ReferenceEquals(target, sourceTrack) || sourceTrack.HasSameArtworkAs(target))
+                {
+                    continue;
+                }
+
+                target.ReplaceAllArtworks(snapshot);
+                updatedCount++;
+            }
+        }
+        finally
+        {
+            _isBatchUpdatingTracks = false;
+        }
+
+        RefreshDirtyState();
+        if (updatedCount == 0)
+        {
+            StatusMessage = $"選択中の {targets.Count} 件はすでに同じアートワーク構成です";
+        }
+        else if (snapshot.Count == 0)
+        {
+            StatusMessage = $"{updatedCount} 件のトラックのアートワーク構成を「なし」に同期しました（未保存）";
+        }
+        else
+        {
+            StatusMessage = $"{updatedCount} 件のトラックへアートワーク構成（{snapshot.Count} 枚）を同期しました（未保存）";
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSelectPreviousArtwork))]
+    private void SelectPreviousArtwork()
+    {
+        SelectedTrack?.SelectPreviousArtwork();
+        NotifyArtworkCommandStates();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSelectNextArtwork))]
+    private void SelectNextArtwork()
+    {
+        SelectedTrack?.SelectNextArtwork();
+        NotifyArtworkCommandStates();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMoveArtworkLeft))]
+    private void MoveArtworkLeft()
+    {
+        if (HasMultipleSelectedTracks || SelectedTrack is not { } target)
+        {
+            return;
+        }
+
+        if (!target.MoveSelectedArtwork(-1))
+        {
+            return;
+        }
+
+        RefreshDirtyState();
+        StatusMessage = $"{target.FileName} のアートワーク順序を前へ移動しました（{target.SelectedArtworkPositionText}・未保存）";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMoveArtworkRight))]
+    private void MoveArtworkRight()
+    {
+        if (HasMultipleSelectedTracks || SelectedTrack is not { } target)
+        {
+            return;
+        }
+
+        if (!target.MoveSelectedArtwork(1))
+        {
+            return;
+        }
+
+        RefreshDirtyState();
+        StatusMessage = $"{target.FileName} のアートワーク順序を後ろへ移動しました（{target.SelectedArtworkPositionText}・未保存）";
     }
 
     [RelayCommand(CanExecute = nameof(CanEditArtwork))]
@@ -492,7 +673,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             return;
         }
 
-        await ApplyArtworkCoreAsync(
+        await AddSingleArtworkCoreAsync(
             targets,
             ct => _artworkService.ResolveFromDropAsync(payload, ct),
             targets.Count == 1
@@ -865,7 +1046,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         };
     }
 
-    private async Task ApplyArtworkCoreAsync(
+    private async Task AddSingleArtworkCoreAsync(
         IReadOnlyList<TrackItemViewModel> targets,
         Func<CancellationToken, Task<ArtworkImage>> fetchOperation,
         string progressMessage)
@@ -886,7 +1067,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             {
                 foreach (var target in targets)
                 {
-                    target.SetArtwork(artwork.Data, artwork.MimeType);
+                    target.AddArtwork(artwork.Data, artwork.MimeType);
                 }
             }
             finally
@@ -895,7 +1076,121 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             }
 
             RefreshDirtyState();
-            StatusMessage = BuildArtworkAppliedMessage(targets, artwork);
+            StatusMessage = BuildArtworkAppliedMessage(targets, artwork, isReplace: false);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "アートワーク取得をキャンセルしました";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"アートワーク取得エラー: {ex.Message}";
+        }
+        finally
+        {
+            IsArtworkLoading = false;
+        }
+    }
+
+    private async Task AddArtworksFromFilesCoreAsync(
+        IReadOnlyList<TrackItemViewModel> targets,
+        IReadOnlyList<string> imagePaths)
+    {
+        if (_artworkService is null)
+        {
+            return;
+        }
+
+        _artworkCts?.Cancel();
+        _artworkCts?.Dispose();
+        _artworkCts = new CancellationTokenSource();
+        var cancellationToken = _artworkCts.Token;
+
+        IsArtworkLoading = true;
+        StatusMessage = targets.Count == 1
+            ? DefaultArtworkLoadingMessage
+            : $"{targets.Count} 件のトラック用アートワークを読み込み中...";
+
+        try
+        {
+            var loadedImages = new List<ArtworkImage>(imagePaths.Count);
+            var errors = new List<string>();
+
+            foreach (var imagePath in imagePaths)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    loadedImages.Add(await _artworkService.LoadFromFileAsync(imagePath, cancellationToken));
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    errors.Add($"{Path.GetFileName(imagePath)}: {ex.Message}");
+                }
+            }
+
+            if (loadedImages.Count == 0)
+            {
+                StatusMessage = errors.Count > 0
+                    ? $"アートワーク取得エラー: {errors[0]}"
+                    : "有効なアートワーク画像を読み込めませんでした";
+                return;
+            }
+
+            _isBatchUpdatingTracks = true;
+            try
+            {
+                foreach (var target in targets)
+                {
+                    foreach (var image in loadedImages)
+                    {
+                        target.AddArtwork(image.Data, image.MimeType);
+                    }
+                }
+            }
+            finally
+            {
+                _isBatchUpdatingTracks = false;
+            }
+
+            RefreshDirtyState();
+            StatusMessage = loadedImages.Count == 1 && errors.Count == 0
+                ? BuildArtworkAppliedMessage(targets, loadedImages[0], isReplace: false)
+                : BuildMultiArtworkAddedMessage(targets, loadedImages.Count, errors.Count);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "アートワーク取得をキャンセルしました";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"アートワーク取得エラー: {ex.Message}";
+        }
+        finally
+        {
+            IsArtworkLoading = false;
+        }
+    }
+
+    private async Task ReplaceSingleArtworkCoreAsync(
+        TrackItemViewModel target,
+        Func<CancellationToken, Task<ArtworkImage>> fetchOperation,
+        string progressMessage)
+    {
+        _artworkCts?.Cancel();
+        _artworkCts?.Dispose();
+        _artworkCts = new CancellationTokenSource();
+        var cancellationToken = _artworkCts.Token;
+
+        IsArtworkLoading = true;
+        StatusMessage = progressMessage;
+
+        try
+        {
+            var artwork = await fetchOperation(cancellationToken);
+            target.ReplaceSelectedArtwork(artwork.Data, artwork.MimeType);
+            RefreshDirtyState();
+            StatusMessage = BuildArtworkAppliedMessage([target], artwork, isReplace: true);
         }
         catch (OperationCanceledException)
         {
@@ -1079,9 +1374,15 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasValidationErrors), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasArtwork), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasArtworkData), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(TrackItemViewModel.ArtworkCount), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(TrackItemViewModel.ArtworkInfoDisplay), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(TrackItemViewModel.ArtworkBitmap), StringComparison.Ordinal))
         {
             RefreshDirtyState();
+        }
+        else if (string.Equals(e.PropertyName, nameof(TrackItemViewModel.SelectedArtwork), StringComparison.Ordinal))
+        {
+            NotifyArtworkCommandStates();
         }
 
         if (SearchReplace.IsOpen
@@ -1284,6 +1585,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             OnPropertyChanged(nameof(SelectedCountText));
             OnPropertyChanged(nameof(ArtworkTargetSummaryText));
             OnPropertyChanged(nameof(ArtworkDropOverlayText));
+            OnPropertyChanged(nameof(SyncArtworksButtonText));
+            OnPropertyChanged(nameof(CanEditSingleTrackArtworkDetails));
         }
 
         if (mixedChanged)
@@ -1298,9 +1601,21 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
         SaveSelectedCommand.NotifyCanExecuteChanged();
         RevertSelectedCommand.NotifyCanExecuteChanged();
-        SelectArtworkCommand.NotifyCanExecuteChanged();
-        RemoveArtworkCommand.NotifyCanExecuteChanged();
+        NotifyArtworkCommandStates();
+    }
+
+    private void NotifyArtworkCommandStates()
+    {
+        AddArtworkCommand.NotifyCanExecuteChanged();
+        ReplaceArtworkCommand.NotifyCanExecuteChanged();
+        RemoveSelectedArtworkCommand.NotifyCanExecuteChanged();
+        ClearAllArtworksCommand.NotifyCanExecuteChanged();
+        SyncArtworksToSelectionCommand.NotifyCanExecuteChanged();
         DropArtworkCommand.NotifyCanExecuteChanged();
+        SelectPreviousArtworkCommand.NotifyCanExecuteChanged();
+        SelectNextArtworkCommand.NotifyCanExecuteChanged();
+        MoveArtworkLeftCommand.NotifyCanExecuteChanged();
+        MoveArtworkRightCommand.NotifyCanExecuteChanged();
     }
 
     private void OnSearchReplaceApplied(string statusMessage)
@@ -1567,18 +1882,38 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     private static string BuildArtworkAppliedMessage(
         IReadOnlyList<TrackItemViewModel> targets,
-        ArtworkImage artwork)
+        ArtworkImage artwork,
+        bool isReplace)
     {
         var targetPrefix = targets.Count == 1
             ? $"{targets[0].FileName} に"
             : $"{targets.Count} 件のトラックに";
 
+        var actionText = isReplace ? "アートワークを差し替えました" : "アートワークを追加しました";
+
         if (artwork.WasConverted && !string.IsNullOrWhiteSpace(artwork.OriginalFormatName))
         {
-            return $"{targetPrefix}アートワークを設定しました（{artwork.OriginalFormatName} → {artwork.MimeType} に変換・未保存）";
+            return $"{targetPrefix}{actionText}（{artwork.OriginalFormatName} → {artwork.MimeType} に変換・未保存）";
         }
 
-        return $"{targetPrefix}アートワークを設定しました（{artwork.MimeType}・未保存）";
+        return $"{targetPrefix}{actionText}（{artwork.MimeType}・未保存）";
+    }
+
+    private static string BuildMultiArtworkAddedMessage(
+        IReadOnlyList<TrackItemViewModel> targets,
+        int addedImageCount,
+        int errorCount)
+    {
+        var targetPrefix = targets.Count == 1
+            ? $"{targets[0].FileName} に"
+            : $"{targets.Count} 件のトラックに";
+
+        if (errorCount > 0)
+        {
+            return $"{targetPrefix}アートワークを {addedImageCount} 枚追加しました（{errorCount} 件エラー・未保存）";
+        }
+
+        return $"{targetPrefix}アートワークを {addedImageCount} 枚追加しました（未保存）";
     }
 
     private static string BuildLoadStatusMessage(TrackLoadResult result)

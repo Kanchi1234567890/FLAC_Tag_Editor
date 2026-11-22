@@ -55,6 +55,11 @@
     <SolidColorBrush x:Key="InlineClearButtonHoverBackgroundColor" Color="#33FFFFFF"/>
     <SolidColorBrush x:Key="SelectionBadgeBackgroundColor" Color="#3378B7FF"/>
     <SolidColorBrush x:Key="SelectionBadgeBorderColor" Color="#8878B7FF"/>
+    <SolidColorBrush x:Key="ArtworkThumbSelectedBorderColor" Color="#FF78B7FF"/>
+    <SolidColorBrush x:Key="ArtworkThumbSelectedBackgroundColor" Color="#3378B7FF"/>
+    <SolidColorBrush x:Key="ArtworkThumbHoverBackgroundColor" Color="#22FFFFFF"/>
+    <SolidColorBrush x:Key="SyncButtonBackgroundColor" Color="#FF2B4C7E"/>
+    <SolidColorBrush x:Key="SyncButtonBorderColor" Color="#FF78B7FF"/>
 
     <!-- Layout Sizes -->
     <GridLength x:Key="DetailPaneInitialWidth">380</GridLength>
@@ -65,6 +70,11 @@
     <x:Double x:Key="ToolbarSeparatorWidth">1</x:Double>
     <x:Double x:Key="ToolbarSeparatorHeight">20</x:Double>
     <x:Double x:Key="ArtworkContainerSize">200</x:Double>
+    <x:Double x:Key="ArtworkThumbItemWidth">60</x:Double>
+    <x:Double x:Key="ArtworkThumbImageSize">44</x:Double>
+    <x:Double x:Key="ArtworkThumbListHeight">82</x:Double>
+    <x:Double x:Key="ArtworkNavButtonWidth">26</x:Double>
+    <x:Double x:Key="ArtworkNavButtonMinHeight">22</x:Double>
     <x:Double x:Key="LoadingProgressWidth">120</x:Double>
     <x:Double x:Key="LoadingProgressHeight">4</x:Double>
     <x:Double x:Key="CommentFieldMinHeight">64</x:Double>
@@ -124,7 +134,13 @@
     <Thickness x:Key="CustomTagCardMargin">0,0,0,8</Thickness>
     <Thickness x:Key="CompactButtonPadding">8,2</Thickness>
     <Thickness x:Key="ArtworkActionButtonPadding">10,4</Thickness>
+    <Thickness x:Key="ArtworkNavButtonPadding">4,1</Thickness>
     <Thickness x:Key="ArtworkHintPadding">12</Thickness>
+    <Thickness x:Key="ArtworkThumbListPadding">4</Thickness>
+    <Thickness x:Key="ArtworkThumbItemPadding">4</Thickness>
+    <Thickness x:Key="ArtworkThumbItemMargin">0,0,4,0</Thickness>
+    <Thickness x:Key="ArtworkMetadataMargin">0,2,0,0</Thickness>
+    <Thickness x:Key="ArtworkCellMargin">12,0,0,0</Thickness>
     <Thickness x:Key="SelectionBadgePadding">10,4</Thickness>
     <Thickness x:Key="SearchBarPadding">10,8</Thickness>
     <Thickness x:Key="SearchOptionPadding">8,3</Thickness>
@@ -148,8 +164,10 @@
     <x:Double x:Key="StatusRightSpacing">16</x:Double>
     <x:Double x:Key="DetailItemSpacing">8</x:Double>
     <x:Double x:Key="SmallItemSpacing">6</x:Double>
+    <x:Double x:Key="ArtworkThumbContentSpacing">2</x:Double>
     <x:Double x:Key="SectionHeaderFontSize">13</x:Double>
     <x:Double x:Key="LabelFontSize">11</x:Double>
+    <x:Double x:Key="SmallLabelFontSize">10</x:Double>
     <x:Double x:Key="BodyFontSize">12</x:Double>
     <x:Double x:Key="StatusFontSize">12</x:Double>
     <x:Double x:Key="PlaceholderFontSize">14</x:Double>
@@ -167,7 +185,6 @@
     <x:String x:Key="ClearTrackListToolTip">読み込まれているトラック一覧をすべてクリアします</x:String>
     <x:String x:Key="ClearTrackListContextMenuText">一覧をクリア</x:String>
     <x:String x:Key="ColArtworkHeaderText">Art</x:String>
-    <x:String x:Key="ArtworkIndicatorToolTip">アートワーク設定済み</x:String>
     <x:String x:Key="SaveSelectedButtonText">保存</x:String>
     <x:String x:Key="SaveAllButtonText">すべて保存</x:String>
     <x:String x:Key="RevertSelectedButtonText">変更を破棄</x:String>
@@ -181,8 +198,9 @@
     <x:String x:Key="ResetColumnsButtonText">既定に戻す</x:String>
     <x:String x:Key="ResetColumnsToolTip">列の表示・並び順・幅を既定の状態に戻します</x:String>
     <x:String x:Key="ColumnsContextMenuText">表示列</x:String>
-    <x:String x:Key="SelectArtworkContextMenuText">アートワークを設定...</x:String>
-    <x:String x:Key="RemoveArtworkContextMenuText">アートワークを削除</x:String>
+    <x:String x:Key="AddArtworkContextMenuText">アートワークを追加...</x:String>
+    <x:String x:Key="SyncArtworksContextMenuText">選択中へアートワーク構成を同期</x:String>
+    <x:String x:Key="ClearAllArtworksContextMenuText">アートワークをすべて削除</x:String>
     <x:String x:Key="SaveSelectedContextMenuText">選択トラックを保存 (Ctrl+S)</x:String>
     <x:String x:Key="RevertSelectedContextMenuText">選択トラックの変更を破棄</x:String>
     <x:String x:Key="SaveSelectedToolTip">選択中のトラックを保存（複数選択時は一括保存） (Ctrl+S)</x:String>
@@ -223,17 +241,35 @@
     <x:String x:Key="SearchPreviewHintText">行をクリックすると該当トラックを選択します</x:String>
     <x:String x:Key="SearchPreviewSplitterToolTip">上下にドラッグしてプレビュー欄の高さを調整</x:String>
     <x:String x:Key="FilterEmptyPlaceholderText">検索条件に一致するトラックがありません</x:String>
-    <x:String x:Key="SelectArtworkButtonText">画像を選択...</x:String>
-    <x:String x:Key="RemoveArtworkButtonText">削除</x:String>
-    <x:String x:Key="SelectArtworkToolTip">ローカル画像ファイルからアートワークを設定（複数選択時は一括適用・JPEG/PNG以外も自動変換）</x:String>
-    <x:String x:Key="RemoveArtworkToolTip">選択中トラックのアートワークを削除（複数選択時は一括削除）</x:String>
+    <x:String x:Key="AddArtworkButtonText">+ 追加...</x:String>
+    <x:String x:Key="ReplaceArtworkButtonText">差し替え...</x:String>
+    <x:String x:Key="RemoveSelectedArtworkButtonText">削除</x:String>
+    <x:String x:Key="ClearAllArtworksButtonText">全削除</x:String>
+    <x:String x:Key="AddArtworkToolTip">ローカル画像ファイルからアートワークを末尾に追加（複数ファイル選択・複数トラック一括追加対応・JPEG/PNG以外も自動変換）</x:String>
+    <x:String x:Key="ReplaceArtworkToolTip">現在表示中のアートワーク画像を差し替え（種別・説明は維持／単一選択時のみ）</x:String>
+    <x:String x:Key="RemoveSelectedArtworkToolTip">現在表示中のアートワークを 1 枚削除（単一選択時のみ）</x:String>
+    <x:String x:Key="ClearAllArtworksToolTip">選択中トラックのアートワークをすべて削除（複数選択時は一括全削除）</x:String>
+    <x:String x:Key="SyncArtworksToolTip">現在表示中のトラックのアートワーク構成（枚数・順序・種別・説明・画像）を他の選択中トラックへ一括同期</x:String>
+    <x:String x:Key="ArtworkPrevButtonText">◀</x:String>
+    <x:String x:Key="ArtworkNextButtonText">▶</x:String>
+    <x:String x:Key="ArtworkPrevToolTip">前のアートワークを表示</x:String>
+    <x:String x:Key="ArtworkNextToolTip">次のアートワークを表示</x:String>
+    <x:String x:Key="ArtworkOrderLabelText">順序:</x:String>
+    <x:String x:Key="ArtworkMoveLeftButtonText">←</x:String>
+    <x:String x:Key="ArtworkMoveRightButtonText">→</x:String>
+    <x:String x:Key="ArtworkMoveLeftToolTip">選択中アートワークの並び順を前へ移動（単一選択時のみ）</x:String>
+    <x:String x:Key="ArtworkMoveRightToolTip">選択中アートワークの並び順を後ろへ移動（単一選択時のみ）</x:String>
+    <x:String x:Key="ArtworkTypeLabelText">種別</x:String>
+    <x:String x:Key="ArtworkDescriptionLabelText">説明</x:String>
+    <x:String x:Key="ArtworkDescriptionPlaceholder">説明（任意・例: ブックレット 1/4）</x:String>
+    <x:String x:Key="ArtworkMultiSelectReadOnlyHintText">※ 個別スロットの差し替え・種別・説明・並び替えは単一選択時に編集できます</x:String>
     <x:String x:Key="AddCustomTagButtonText">+ 追加</x:String>
     <x:String x:Key="RemoveCustomTagButtonText">×</x:String>
     <x:String x:Key="RemoveCustomTagToolTip">この独自タグを削除</x:String>
     <x:String x:Key="UnsavedTrackBannerText">● 未保存の変更があります</x:String>
     <x:String x:Key="EmptyListPlaceholderText">「フォルダを開く」または「ファイルを開く」からFLACファイルを読み込んでください</x:String>
     <x:String x:Key="NoSelectionPlaceholderText">左の一覧からトラックを選択すると詳細タグが表示されます</x:String>
-    <x:String x:Key="NoArtworkPlaceholderText">No Artwork&#x0a;（画像ファイル / Web画像をドロップ）</x:String>
+    <x:String x:Key="NoArtworkPlaceholderText">No Artwork&#x0a;（画像ファイル / Web画像をドロップして追加）</x:String>
     <x:String x:Key="NoCustomTagsPlaceholderText">独自タグはありません（「+ 追加」から追加できます）</x:String>
     <x:String x:Key="CounterSeparatorText">/</x:String>
     <x:String x:Key="CounterNumberPlaceholder">番号</x:String>
