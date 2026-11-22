@@ -20,6 +20,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private const string OpenFilesDialogTitle = "FLACファイルを選択";
     private const string OpenArtworkDialogTitle = "アートワーク画像を選択";
     private const string InitialStatusMessage = "フォルダまたはFLACファイルを選択してください";
+    private const string DuplicateFileNameErrorMessage = "同一フォルダ内に同名のファイルが重複しています。";
     private static readonly TrackGridColumnKind[] DefaultGridColumns =
     [
         TrackGridColumnKind.Dirty,
@@ -38,9 +39,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IArtworkService? _artworkService;
     private readonly IClipboardService? _clipboardService;
     private readonly ITsvPasteService? _tsvPasteService;
+    private readonly ITextSearchReplaceService _textSearchReplaceService;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _saveCts;
     private CancellationTokenSource? _artworkCts;
+    private bool _isUpdatingExternalValidation;
     private bool _disposed;
 
     [ObservableProperty]
@@ -112,6 +115,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public MainWindowViewModel()
     {
+        _textSearchReplaceService = new DesignTimeTextSearchReplaceService();
+        SearchReplace = CreateSearchReplaceViewModel();
+
         var sampleTrack = new FlacTrack
         {
             FilePath = @"C:\Music\Sample Album\01 - Sample Track.flac",
@@ -143,6 +149,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var item = new TrackItemViewModel(sampleTrack);
         AttachTrack(item);
         Tracks.Add(item);
+        DisplayedTracks.Add(item);
         SelectedTrack = Tracks[0];
         CurrentSourcePath = @"C:\Music\Sample Album";
         StatusMessage = "1 件のFLACファイルを読み込みました";
@@ -154,20 +161,31 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IFileDialogService fileDialogService,
         IArtworkService artworkService,
         IClipboardService clipboardService,
-        ITsvPasteService tsvPasteService)
+        ITsvPasteService tsvPasteService,
+        ITextSearchReplaceService textSearchReplaceService)
     {
         _flacTagService = flacTagService ?? throw new ArgumentNullException(nameof(flacTagService));
         _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
         _artworkService = artworkService ?? throw new ArgumentNullException(nameof(artworkService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _tsvPasteService = tsvPasteService ?? throw new ArgumentNullException(nameof(tsvPasteService));
+        _textSearchReplaceService = textSearchReplaceService ?? throw new ArgumentNullException(nameof(textSearchReplaceService));
+        SearchReplace = CreateSearchReplaceViewModel();
     }
 
     public ObservableCollection<TrackItemViewModel> Tracks { get; } = new();
 
+    public ObservableCollection<TrackItemViewModel> DisplayedTracks { get; } = new();
+
+    public SearchReplaceViewModel SearchReplace { get; }
+
     public bool IsBusy => IsLoading || IsSaving || IsArtworkLoading;
 
     public bool HasTracks => Tracks.Count > 0;
+
+    public bool HasDisplayedTracks => DisplayedTracks.Count > 0;
+
+    public bool IsFilterEmpty => HasTracks && !HasDisplayedTracks;
 
     public bool HasSelectedTrack => SelectedTrack is not null;
 
@@ -175,7 +193,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public string DirtyCountText => HasDirtyTracks ? $"未保存: {DirtyTrackCount} 件" : string.Empty;
 
-    public string TrackCountText => $"{Tracks.Count} トラック";
+    public string TrackCountText => SearchReplace.IsFilterActive
+        ? $"{DisplayedTracks.Count} / {Tracks.Count} トラック（フィルタ中）"
+        : $"{Tracks.Count} トラック";
 
     private bool CanOpen => !IsBusy;
 
@@ -372,6 +392,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         RefreshDirtyState();
+        if (SearchReplace.IsOpen)
+        {
+            SearchReplace.RefreshResults(notifyFilter: true);
+        }
+
         StatusMessage = BuildPasteStatusMessage(
             affectedRows.Count,
             affectedColumns.Count,
@@ -415,8 +440,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             if (result.SavedTracks.Count > 0)
             {
-                target.AcceptChanges(result.SavedTracks[0]);
+                var savedTrack = result.SavedEntries.Count > 0
+                    ? result.SavedEntries[0].Track
+                    : result.SavedTracks[0];
+                target.AcceptChanges(savedTrack);
                 RefreshDirtyState();
+                if (SearchReplace.IsOpen)
+                {
+                    SearchReplace.RefreshResults(notifyFilter: true);
+                }
+
                 StatusMessage = $"{target.FileName} を保存しました";
             }
         }
@@ -460,21 +493,36 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var editedTracks = dirtyTracks.Select(t => t.BuildEditedTrack()).ToList();
             var result = await _flacTagService.SaveTracksAsync(editedTracks, cancellationToken);
 
-            var savedByPath = new Dictionary<string, FlacTrack>(StringComparer.OrdinalIgnoreCase);
-            foreach (var saved in result.SavedTracks)
+            var savedByOriginalPath = new Dictionary<string, FlacTrack>(StringComparer.OrdinalIgnoreCase);
+            if (result.SavedEntries.Count > 0)
             {
-                savedByPath[saved.FilePath] = saved;
+                foreach (var entry in result.SavedEntries)
+                {
+                    savedByOriginalPath[entry.OriginalFilePath] = entry.Track;
+                }
+            }
+            else
+            {
+                foreach (var saved in result.SavedTracks)
+                {
+                    savedByOriginalPath[saved.FilePath] = saved;
+                }
             }
 
             foreach (var item in dirtyTracks)
             {
-                if (savedByPath.TryGetValue(item.FilePath, out var savedTrack))
+                if (savedByOriginalPath.TryGetValue(item.FilePath, out var savedTrack))
                 {
                     item.AcceptChanges(savedTrack);
                 }
             }
 
             RefreshDirtyState();
+            if (SearchReplace.IsOpen)
+            {
+                SearchReplace.RefreshResults(notifyFilter: true);
+            }
+
             StatusMessage = BuildSaveStatusMessage(result);
         }
         catch (OperationCanceledException)
@@ -501,6 +549,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         target.RevertChanges();
         RefreshDirtyState();
+        if (SearchReplace.IsOpen)
+        {
+            SearchReplace.RefreshResults(notifyFilter: true);
+        }
+
         StatusMessage = $"{target.FileName} の変更を破棄しました";
     }
 
@@ -519,6 +572,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         RefreshDirtyState();
+        if (SearchReplace.IsOpen)
+        {
+            SearchReplace.RefreshResults(notifyFilter: true);
+        }
+
         StatusMessage = $"{dirtyTracks.Count} 件の変更を破棄しました";
     }
 
@@ -601,11 +659,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             Tracks.Add(item);
         }
 
-        SelectedTrack = Tracks.FirstOrDefault();
         CurrentSourcePath = sourceDescription;
 
         OnPropertyChanged(nameof(HasTracks));
-        OnPropertyChanged(nameof(TrackCountText));
+        SearchReplace.RefreshResults(notifyFilter: false);
+        SyncDisplayedTracks();
+        SelectedTrack = DisplayedTracks.FirstOrDefault();
         RefreshDirtyState();
 
         StatusMessage = BuildLoadStatusMessage(result);
@@ -614,6 +673,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void ClearTracks()
     {
         SelectedTrack = null;
+        DisplayedTracks.Clear();
 
         foreach (var item in Tracks)
         {
@@ -623,6 +683,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         Tracks.Clear();
         DirtyTrackCount = 0;
+        OnPropertyChanged(nameof(HasDisplayedTracks));
+        OnPropertyChanged(nameof(IsFilterEmpty));
+        OnPropertyChanged(nameof(TrackCountText));
     }
 
     private void AttachTrack(TrackItemViewModel item)
@@ -637,16 +700,49 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void OnTrackItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (_isUpdatingExternalValidation)
+        {
+            return;
+        }
+
         if (string.Equals(e.PropertyName, nameof(TrackItemViewModel.IsDirty), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasValidationErrors), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasArtwork), StringComparison.Ordinal))
         {
             RefreshDirtyState();
         }
+
+        if (SearchReplace.IsOpen
+            && !SearchReplace.IsExecutingReplace
+            && IsSearchableTrackProperty(e.PropertyName))
+        {
+            SearchReplace.RefreshResults(notifyFilter: false);
+        }
+    }
+
+    partial void OnSelectedTrackChanged(TrackItemViewModel? value)
+    {
+        SearchReplace.NotifyCommandStates();
+    }
+
+    partial void OnIsLoadingChanged(bool value)
+    {
+        SearchReplace.NotifyCommandStates();
+    }
+
+    partial void OnIsSavingChanged(bool value)
+    {
+        SearchReplace.NotifyCommandStates();
+    }
+
+    partial void OnIsArtworkLoadingChanged(bool value)
+    {
+        SearchReplace.NotifyCommandStates();
     }
 
     private void RefreshDirtyState()
     {
+        ValidateDuplicateFileNames();
         DirtyTrackCount = Tracks.Count(t => t.IsDirty);
         SaveSelectedCommand.NotifyCanExecuteChanged();
         RevertSelectedCommand.NotifyCanExecuteChanged();
@@ -656,6 +752,129 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         RemoveArtworkCommand.NotifyCanExecuteChanged();
         DropArtworkCommand.NotifyCanExecuteChanged();
         PasteTsvCommand.NotifyCanExecuteChanged();
+        SearchReplace.NotifyCommandStates();
+    }
+
+    private SearchReplaceViewModel CreateSearchReplaceViewModel()
+    {
+        return new SearchReplaceViewModel(
+            _textSearchReplaceService,
+            getAllTracks: () => Tracks,
+            getDisplayedTracks: () => DisplayedTracks,
+            getSelectedTrack: () => SelectedTrack,
+            selectTrack: SelectTrackFromSearch,
+            isBusy: () => IsBusy,
+            onFilterChanged: SyncDisplayedTracks,
+            onReplaceApplied: OnSearchReplaceApplied);
+    }
+
+    private void SelectTrackFromSearch(TrackItemViewModel track)
+    {
+        if (!DisplayedTracks.Contains(track))
+        {
+            return;
+        }
+
+        SelectedTrack = track;
+    }
+
+    private void OnSearchReplaceApplied(string statusMessage)
+    {
+        RefreshDirtyState();
+        StatusMessage = statusMessage;
+    }
+
+    private void SyncDisplayedTracks()
+    {
+        var desiredTracks = SearchReplace.IsFilterActive
+            ? Tracks.Where(SearchReplace.IsTrackMatching).ToList()
+            : Tracks.ToList();
+
+        if (!HasSameSequence(DisplayedTracks, desiredTracks))
+        {
+            var previousSelected = SelectedTrack;
+
+            DisplayedTracks.Clear();
+            foreach (var item in desiredTracks)
+            {
+                DisplayedTracks.Add(item);
+            }
+
+            if (previousSelected is not null && DisplayedTracks.Contains(previousSelected))
+            {
+                SelectedTrack = previousSelected;
+            }
+            else
+            {
+                SelectedTrack = DisplayedTracks.FirstOrDefault();
+            }
+        }
+
+        OnPropertyChanged(nameof(HasDisplayedTracks));
+        OnPropertyChanged(nameof(IsFilterEmpty));
+        OnPropertyChanged(nameof(TrackCountText));
+        SearchReplace.NotifyCommandStates();
+    }
+
+    private void ValidateDuplicateFileNames()
+    {
+        if (Tracks.Count == 0)
+        {
+            return;
+        }
+
+        var targetCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var track in Tracks)
+        {
+            var targetPath = track.TargetFilePath;
+            targetCounts[targetPath] = targetCounts.GetValueOrDefault(targetPath) + 1;
+        }
+
+        _isUpdatingExternalValidation = true;
+        try
+        {
+            foreach (var track in Tracks)
+            {
+                var isDuplicate = targetCounts.GetValueOrDefault(track.TargetFilePath) > 1;
+                track.SetExternalFileNameError(isDuplicate ? DuplicateFileNameErrorMessage : null);
+            }
+        }
+        finally
+        {
+            _isUpdatingExternalValidation = false;
+        }
+    }
+
+    private static bool HasSameSequence(
+        ObservableCollection<TrackItemViewModel> current,
+        List<TrackItemViewModel> desired)
+    {
+        if (current.Count != desired.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < current.Count; i++)
+        {
+            if (!ReferenceEquals(current[i], desired[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsSearchableTrackProperty(string? propertyName)
+    {
+        return propertyName is nameof(TrackItemViewModel.FileName)
+            or nameof(TrackItemViewModel.Title)
+            or nameof(TrackItemViewModel.Artist)
+            or nameof(TrackItemViewModel.Album)
+            or nameof(TrackItemViewModel.AlbumArtist)
+            or nameof(TrackItemViewModel.Genre)
+            or nameof(TrackItemViewModel.Comment)
+            or nameof(TrackItemViewModel.IsDirty);
     }
 
     private (
@@ -817,5 +1036,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _artworkCts = null;
 
         ClearTracks();
+    }
+
+    private sealed class DesignTimeTextSearchReplaceService : ITextSearchReplaceService
+    {
+        public string? ValidatePattern(SearchReplaceQuery query) => null;
+        public int CountMatches(string? input, SearchReplaceQuery query, bool isFileName = false) => 0;
+        public TextReplaceResult Replace(string? input, SearchReplaceQuery query, bool isFileName = false) =>
+            new(input ?? string.Empty, 0, false);
+        public FileNameValidationResult ValidateFileName(string? fileName) =>
+            FlacFileNameValidator.Validate(fileName);
     }
 }

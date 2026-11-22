@@ -46,6 +46,7 @@ public partial class App : Application
         services.AddSingleton<IArtworkService, ArtworkService>();
         services.AddSingleton<IClipboardService, ClipboardService>();
         services.AddSingleton<ITsvPasteService, TsvPasteService>();
+        services.AddSingleton<ITextSearchReplaceService, TextSearchReplaceService>();
 
         // ViewModels
         services.AddSingleton<MainWindowViewModel>();

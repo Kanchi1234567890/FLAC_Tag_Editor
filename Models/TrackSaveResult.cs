@@ -8,8 +8,14 @@ namespace FLAC_Tag_Editor.Models;
 public sealed class TrackSaveResult
 {
     public IReadOnlyList<FlacTrack> SavedTracks { get; init; } = [];
+    public IReadOnlyList<SavedTrackEntry> SavedEntries { get; init; } = [];
     public IReadOnlyList<TrackSaveError> Errors { get; init; } = [];
 }
+
+/// <summary>
+/// リネームを伴う保存でも元のトラックと突合するための保存成功エントリ。
+/// </summary>
+public sealed record SavedTrackEntry(string OriginalFilePath, FlacTrack Track);
 
 /// <summary>
 /// 個別ファイルの保存失敗情報。

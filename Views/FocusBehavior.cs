@@ -66,6 +66,10 @@ public static class FocusBehavior
             control.SetCurrentValue(IsFocusRequestedProperty, false);
             control.BringIntoView();
             control.Focus();
+            if (control is TextBox textBox)
+            {
+                textBox.SelectAll();
+            }
         }, DispatcherPriority.Background);
     }
 }
