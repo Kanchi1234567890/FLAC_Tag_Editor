@@ -29,9 +29,16 @@
     <SolidColorBrush x:Key="SplitterColor" Color="#FF333337"/>
     <SolidColorBrush x:Key="ReadOnlyFieldBackgroundColor" Color="#FF1B1B1D"/>
     <SolidColorBrush x:Key="ReadOnlyFieldBorderColor" Color="#FF38383D"/>
+    <SolidColorBrush x:Key="EditableFieldBackgroundColor" Color="#FF2A2A2E"/>
+    <SolidColorBrush x:Key="EditableFieldBorderColor" Color="#FF4A4A52"/>
     <SolidColorBrush x:Key="TextColor" Color="#FFF3F3F3"/>
     <SolidColorBrush x:Key="SecondaryTextColor" Color="#FFA6A6AE"/>
     <SolidColorBrush x:Key="SectionHeaderColor" Color="#FF78B7FF"/>
+    <SolidColorBrush x:Key="DirtyIndicatorColor" Color="#FFFFC857"/>
+    <SolidColorBrush x:Key="DirtyBannerBackgroundColor" Color="#33FFC857"/>
+    <SolidColorBrush x:Key="DirtyBannerBorderColor" Color="#88FFC857"/>
+    <SolidColorBrush x:Key="ErrorTextColor" Color="#FFFF6B6B"/>
+    <SolidColorBrush x:Key="ErrorBorderColor" Color="#FFE05252"/>
 
     <!-- Layout Sizes -->
     <GridLength x:Key="DetailPaneInitialWidth">380</GridLength>
@@ -39,13 +46,18 @@
     <x:Double x:Key="DetailPaneMaxWidth">640</x:Double>
     <x:Double x:Key="ListPaneMinWidth">360</x:Double>
     <x:Double x:Key="SplitterWidth">4</x:Double>
+    <x:Double x:Key="ToolbarSeparatorWidth">1</x:Double>
+    <x:Double x:Key="ToolbarSeparatorHeight">20</x:Double>
     <x:Double x:Key="ArtworkContainerSize">200</x:Double>
     <x:Double x:Key="LoadingProgressWidth">120</x:Double>
     <x:Double x:Key="LoadingProgressHeight">4</x:Double>
     <x:Double x:Key="CommentFieldMinHeight">64</x:Double>
+    <x:Double x:Key="CompactButtonMinHeight">24</x:Double>
+    <x:Double x:Key="RemoveTagButtonWidth">28</x:Double>
 
     <!-- DataGrid Column Widths -->
-    <DataGridLength x:Key="ColTrackWidth">64</DataGridLength>
+    <DataGridLength x:Key="ColDirtyWidth">28</DataGridLength>
+    <DataGridLength x:Key="ColTrackWidth">72</DataGridLength>
     <DataGridLength x:Key="ColTitleWidth">220</DataGridLength>
     <DataGridLength x:Key="ColArtistWidth">180</DataGridLength>
     <DataGridLength x:Key="ColAlbumWidth">200</DataGridLength>
@@ -56,17 +68,26 @@
 
     <!-- Spacing / Borders / Typography -->
     <Thickness x:Key="ToolbarPadding">12,8</Thickness>
+    <Thickness x:Key="ToolbarSeparatorMargin">4,0</Thickness>
     <Thickness x:Key="StatusBarPadding">12,6</Thickness>
     <Thickness x:Key="DetailPanePadding">16</Thickness>
+    <Thickness x:Key="DetailBannerAreaPadding">16,8</Thickness>
     <Thickness x:Key="HorizontalTextMargin">16,0</Thickness>
     <Thickness x:Key="SectionMargin">0,14,0,6</Thickness>
     <Thickness x:Key="FieldLabelMargin">0,6,0,2</Thickness>
+    <Thickness x:Key="CounterSeparatorMargin">4,0</Thickness>
+    <Thickness x:Key="DirtyBannerPadding">10,6</Thickness>
+    <Thickness x:Key="CustomTagCardPadding">8</Thickness>
+    <Thickness x:Key="CustomTagCardMargin">0,0,0,8</Thickness>
+    <Thickness x:Key="CompactButtonPadding">8,2</Thickness>
     <Thickness x:Key="BottomBorderThickness">0,0,0,1</Thickness>
     <Thickness x:Key="TopBorderThickness">0,1,0,0</Thickness>
     <Thickness x:Key="ThinBorderThickness">1</Thickness>
     <CornerRadius x:Key="DefaultCornerRadius">4</CornerRadius>
     <x:Double x:Key="ToolbarSpacing">8</x:Double>
+    <x:Double x:Key="StatusRightSpacing">16</x:Double>
     <x:Double x:Key="DetailItemSpacing">8</x:Double>
+    <x:Double x:Key="SmallItemSpacing">6</x:Double>
     <x:Double x:Key="SectionHeaderFontSize">13</x:Double>
     <x:Double x:Key="LabelFontSize">11</x:Double>
     <x:Double x:Key="BodyFontSize">12</x:Double>
@@ -76,8 +97,27 @@
     <!-- UI Labels -->
     <x:String x:Key="OpenFolderButtonText">フォルダを開く</x:String>
     <x:String x:Key="OpenFilesButtonText">ファイルを開く</x:String>
+    <x:String x:Key="SaveSelectedButtonText">保存</x:String>
+    <x:String x:Key="SaveAllButtonText">すべて保存</x:String>
+    <x:String x:Key="RevertSelectedButtonText">変更を破棄</x:String>
+    <x:String x:Key="RevertAllButtonText">すべて破棄</x:String>
+    <x:String x:Key="SaveSelectedToolTip">選択中のトラックを保存 (Ctrl+S)</x:String>
+    <x:String x:Key="SaveAllToolTip">変更のあるすべてのトラックを保存 (Ctrl+Shift+S)</x:String>
+    <x:String x:Key="RevertSelectedToolTip">選択中のトラックの未保存変更を元に戻す</x:String>
+    <x:String x:Key="RevertAllToolTip">すべての未保存変更を元に戻す</x:String>
+    <x:String x:Key="AddCustomTagButtonText">+ 追加</x:String>
+    <x:String x:Key="RemoveCustomTagButtonText">×</x:String>
+    <x:String x:Key="RemoveCustomTagToolTip">この独自タグを削除</x:String>
+    <x:String x:Key="UnsavedTrackBannerText">● 未保存の変更があります</x:String>
     <x:String x:Key="EmptyListPlaceholderText">「フォルダを開く」または「ファイルを開く」からFLACファイルを読み込んでください</x:String>
     <x:String x:Key="NoSelectionPlaceholderText">左の一覧からトラックを選択すると詳細タグが表示されます</x:String>
     <x:String x:Key="NoArtworkPlaceholderText">No Artwork</x:String>
+    <x:String x:Key="NoCustomTagsPlaceholderText">独自タグはありません（「+ 追加」から追加できます）</x:String>
+    <x:String x:Key="CounterSeparatorText">/</x:String>
+    <x:String x:Key="CounterNumberPlaceholder">番号</x:String>
+    <x:String x:Key="CounterTotalPlaceholder">総数</x:String>
+    <x:String x:Key="YearPlaceholder">YYYY</x:String>
+    <x:String x:Key="CustomTagKeyPlaceholder">キー (例: LABEL)</x:String>
+    <x:String x:Key="CustomTagValuePlaceholder">値</x:String>
 
 </ResourceDictionary>
