@@ -19,6 +19,21 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
     private const string DuplicateFileNameWarning = "同一フォルダ内に同名のファイルが重複します。";
     private const string ExistingFileConflictWarning = "同名の別ファイルがフォルダ内に既に存在します。";
     private const string RegexTimeoutErrorMessage = "正規表現の検索がタイムアウトしました。パターンを見直してください。";
+    private const string CustomTagAllDisplayName = "独自タグ (すべて)";
+    private const string CustomTagOptionPrefix = "独自タグ: ";
+
+    private static readonly SearchReplaceTargetOption[] FixedTargetOptions =
+    [
+        new(SearchReplaceTarget.All, "すべて"),
+        new(SearchReplaceTarget.FileName, "ファイル名"),
+        new(SearchReplaceTarget.Title, "タイトル"),
+        new(SearchReplaceTarget.Artist, "アーティスト"),
+        new(SearchReplaceTarget.Album, "アルバム"),
+        new(SearchReplaceTarget.AlbumArtist, "アルバムアーティスト"),
+        new(SearchReplaceTarget.Genre, "ジャンル"),
+        new(SearchReplaceTarget.Comment, "コメント"),
+        new(SearchReplaceTarget.CustomTags, CustomTagAllDisplayName)
+    ];
 
     private readonly ITextSearchReplaceService _searchReplaceService;
     private readonly Func<IReadOnlyList<TrackItemViewModel>> _getAllTracks;
@@ -28,9 +43,11 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
     private readonly Func<bool> _isBusy;
     private readonly Action _onFilterChanged;
     private readonly Action<string> _onReplaceApplied;
+    private readonly Func<IReadOnlyList<CustomTagDefinitionViewModel>> _getCustomTagDefinitions;
 
     private readonly HashSet<string> _matchingTrackPaths = new(StringComparer.OrdinalIgnoreCase);
     private bool _isResetting;
+    private bool _isUpdatingTargetOptions;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFilterActive))]
@@ -108,7 +125,8 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
         Action<TrackItemViewModel> selectTrack,
         Func<bool> isBusy,
         Action onFilterChanged,
-        Action<string> onReplaceApplied)
+        Action<string> onReplaceApplied,
+        Func<IReadOnlyList<CustomTagDefinitionViewModel>>? getCustomTagDefinitions = null)
     {
         _searchReplaceService = searchReplaceService ?? throw new ArgumentNullException(nameof(searchReplaceService));
         _getAllTracks = getAllTracks ?? throw new ArgumentNullException(nameof(getAllTracks));
@@ -118,24 +136,14 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
         _isBusy = isBusy ?? throw new ArgumentNullException(nameof(isBusy));
         _onFilterChanged = onFilterChanged ?? throw new ArgumentNullException(nameof(onFilterChanged));
         _onReplaceApplied = onReplaceApplied ?? throw new ArgumentNullException(nameof(onReplaceApplied));
+        _getCustomTagDefinitions = getCustomTagDefinitions ?? (static () => []);
 
-        TargetOptions =
-        [
-            new SearchReplaceTargetOption(SearchReplaceTarget.All, "すべて"),
-            new SearchReplaceTargetOption(SearchReplaceTarget.FileName, "ファイル名"),
-            new SearchReplaceTargetOption(SearchReplaceTarget.Title, "タイトル"),
-            new SearchReplaceTargetOption(SearchReplaceTarget.Artist, "アーティスト"),
-            new SearchReplaceTargetOption(SearchReplaceTarget.Album, "アルバム"),
-            new SearchReplaceTargetOption(SearchReplaceTarget.AlbumArtist, "アルバムアーティスト"),
-            new SearchReplaceTargetOption(SearchReplaceTarget.Genre, "ジャンル"),
-            new SearchReplaceTargetOption(SearchReplaceTarget.Comment, "コメント"),
-            new SearchReplaceTargetOption(SearchReplaceTarget.CustomTags, "独自タグ")
-        ];
-
+        TargetOptions.ReplaceAll(FixedTargetOptions);
         _selectedTargetOption = TargetOptions[0];
+        RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
     }
 
-    public IReadOnlyList<SearchReplaceTargetOption> TargetOptions { get; }
+    public BulkObservableCollection<SearchReplaceTargetOption> TargetOptions { get; } = new();
 
     public ObservableCollection<SearchReplacePreviewItem> PreviewItems { get; } = new();
 
@@ -148,7 +156,7 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
     public bool HasValidPattern => !string.IsNullOrEmpty(SearchPattern) && !HasPatternError;
 
     public bool ShowPreserveExtensionOption =>
-        SelectedTargetOption.Target is SearchReplaceTarget.All or SearchReplaceTarget.FileName;
+        SelectedTargetOption?.Target is SearchReplaceTarget.All or SearchReplaceTarget.FileName;
 
     public bool ShowPreviewPane => IsOpen && IsReplaceVisible && IsPreviewVisible;
 
@@ -183,15 +191,63 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
     /// </summary>
     public SearchReplaceQuery BuildQuery()
     {
+        var selected = SelectedTargetOption ?? FixedTargetOptions[0];
         return new SearchReplaceQuery
         {
             SearchPattern = SearchPattern,
             Replacement = ReplacementText,
-            Target = SelectedTargetOption.Target,
+            Target = selected.Target,
+            CustomTagKey = selected.Target == SearchReplaceTarget.SpecificCustomTag
+                ? selected.CustomTagKey
+                : null,
             UseRegex = UseRegex,
             IgnoreCase = !IsCaseSensitive,
             PreserveFileExtension = PreserveFileExtension
         };
+    }
+
+    /// <summary>
+    /// 独自タグ定義カタログおよび読み込み済みトラックの未登録独自タグキーに基づき、対象フィールド選択肢を再同期する。
+    /// </summary>
+    /// <returns>フォールバック等により実効的な検索対象が変化した場合は true。</returns>
+    public bool RefreshTargetOptions(bool refreshResultsIfSelectionChanged = true)
+    {
+        var newOptions = BuildTargetOptions();
+        if (HasSameTargetOptions(TargetOptions, newOptions)
+            && SelectedTargetOption is not null
+            && TargetOptions.Contains(SelectedTargetOption))
+        {
+            return false;
+        }
+
+        var previousTarget = SelectedTargetOption?.Target ?? SearchReplaceTarget.All;
+        var previousCustomTagKey = SelectedTargetOption?.CustomTagKey;
+        var nextSelection = ResolveNextTargetOption(newOptions, previousTarget, previousCustomTagKey);
+
+        var effectiveSelectionChanged =
+            nextSelection.Target != previousTarget
+            || !string.Equals(nextSelection.CustomTagKey, previousCustomTagKey, StringComparison.OrdinalIgnoreCase);
+
+        _isUpdatingTargetOptions = true;
+        try
+        {
+            TargetOptions.ReplaceAll(newOptions);
+            SelectedTargetOption = nextSelection;
+            // ComboBox の Reset 同期で選択表示が外れないよう、同値の場合も含めて明示通知する
+            OnPropertyChanged(nameof(SelectedTargetOption));
+            OnPropertyChanged(nameof(ShowPreserveExtensionOption));
+        }
+        finally
+        {
+            _isUpdatingTargetOptions = false;
+        }
+
+        if (refreshResultsIfSelectionChanged && effectiveSelectionChanged && IsOpen)
+        {
+            RefreshResults(notifyFilter: true);
+        }
+
+        return effectiveSelectionChanged;
     }
 
     /// <summary>
@@ -527,9 +583,14 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
 
     partial void OnSelectedTargetOptionChanged(SearchReplaceTargetOption value)
     {
+        if (_isUpdatingTargetOptions)
+        {
+            return;
+        }
+
         if (value is null)
         {
-            SelectedTargetOption = TargetOptions[0];
+            SelectedTargetOption = TargetOptions.Count > 0 ? TargetOptions[0] : FixedTargetOptions[0];
             return;
         }
 
@@ -849,6 +910,131 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
         }
 
         return -1;
+    }
+
+    private List<SearchReplaceTargetOption> BuildTargetOptions()
+    {
+        var options = new List<SearchReplaceTargetOption>(FixedTargetOptions.Length + 8);
+        options.AddRange(FixedTargetOptions);
+
+        var definedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var definition in _getCustomTagDefinitions())
+        {
+            var trimmedKey = definition.Key?.Trim() ?? string.Empty;
+            if (trimmedKey.Length == 0 || !definedKeys.Add(trimmedKey))
+            {
+                continue;
+            }
+
+            var displayName = FormatCustomTagDefinitionOptionDisplayName(definition, trimmedKey);
+            options.Add(new SearchReplaceTargetOption(
+                SearchReplaceTarget.SpecificCustomTag,
+                displayName,
+                trimmedKey));
+        }
+
+        var unregisteredKeys = new List<string>();
+        var seenUnregistered = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var track in _getAllTracks())
+        {
+            foreach (var customTag in track.UnregisteredCustomTags)
+            {
+                var trimmedKey = customTag.Key?.Trim() ?? string.Empty;
+                if (trimmedKey.Length == 0
+                    || definedKeys.Contains(trimmedKey)
+                    || !seenUnregistered.Add(trimmedKey))
+                {
+                    continue;
+                }
+
+                unregisteredKeys.Add(trimmedKey);
+            }
+        }
+
+        unregisteredKeys.Sort(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in unregisteredKeys)
+        {
+            options.Add(new SearchReplaceTargetOption(
+                SearchReplaceTarget.SpecificCustomTag,
+                $"{CustomTagOptionPrefix}{key}",
+                key));
+        }
+
+        return options;
+    }
+
+    private static string FormatCustomTagDefinitionOptionDisplayName(
+        CustomTagDefinitionViewModel definition,
+        string trimmedKey)
+    {
+        return definition.HasCustomLabel
+            ? $"{CustomTagOptionPrefix}{definition.Label} ({trimmedKey})"
+            : $"{CustomTagOptionPrefix}{trimmedKey}";
+    }
+
+    private static bool HasSameTargetOptions(
+        IReadOnlyList<SearchReplaceTargetOption> current,
+        IReadOnlyList<SearchReplaceTargetOption> desired)
+    {
+        if (current.Count != desired.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < current.Count; i++)
+        {
+            var left = current[i];
+            var right = desired[i];
+            if (left.Target != right.Target
+                || !string.Equals(left.DisplayName, right.DisplayName, StringComparison.Ordinal)
+                || !string.Equals(left.CustomTagKey, right.CustomTagKey, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static SearchReplaceTargetOption ResolveNextTargetOption(
+        IReadOnlyList<SearchReplaceTargetOption> options,
+        SearchReplaceTarget previousTarget,
+        string? previousCustomTagKey)
+    {
+        if (previousTarget == SearchReplaceTarget.SpecificCustomTag)
+        {
+            if (!string.IsNullOrWhiteSpace(previousCustomTagKey))
+            {
+                foreach (var option in options)
+                {
+                    if (option.Target == SearchReplaceTarget.SpecificCustomTag
+                        && string.Equals(option.CustomTagKey, previousCustomTagKey, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return option;
+                    }
+                }
+            }
+
+            foreach (var option in options)
+            {
+                if (option.Target == SearchReplaceTarget.CustomTags)
+                {
+                    return option;
+                }
+            }
+
+            return options[0];
+        }
+
+        foreach (var option in options)
+        {
+            if (option.Target == previousTarget)
+            {
+                return option;
+            }
+        }
+
+        return options[0];
     }
 
     private static string BuildReplaceStatusMessage(

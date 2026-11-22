@@ -17,13 +17,17 @@ public enum SearchReplaceTarget
     AlbumArtist,
     Genre,
     Comment,
-    CustomTags
+    CustomTags,
+    SpecificCustomTag
 }
 
 /// <summary>
 /// UI の対象フィールド選択用オプション。
 /// </summary>
-public sealed record SearchReplaceTargetOption(SearchReplaceTarget Target, string DisplayName);
+public sealed record SearchReplaceTargetOption(
+    SearchReplaceTarget Target,
+    string DisplayName,
+    string? CustomTagKey = null);
 
 /// <summary>
 /// 検索・置換の条件パラメータ。
@@ -33,11 +37,16 @@ public sealed record SearchReplaceQuery
     public string SearchPattern { get; init; } = string.Empty;
     public string Replacement { get; init; } = string.Empty;
     public SearchReplaceTarget Target { get; init; } = SearchReplaceTarget.All;
+    public string? CustomTagKey { get; init; }
     public bool UseRegex { get; init; }
     public bool IgnoreCase { get; init; } = true;
     public bool PreserveFileExtension { get; init; } = true;
 
     public bool HasSearchPattern => !string.IsNullOrEmpty(SearchPattern);
+
+    public bool HasSpecificCustomTagKey =>
+        Target == SearchReplaceTarget.SpecificCustomTag
+        && !string.IsNullOrWhiteSpace(CustomTagKey);
 }
 
 /// <summary>

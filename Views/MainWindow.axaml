@@ -496,7 +496,9 @@
                                           ToolTip.Tip="{DynamicResource SearchTargetComboToolTip}">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate x:DataType="models:SearchReplaceTargetOption">
-                                            <TextBlock Text="{Binding DisplayName}"/>
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding DisplayName}"/>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>

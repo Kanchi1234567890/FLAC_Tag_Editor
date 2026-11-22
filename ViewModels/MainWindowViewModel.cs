@@ -171,7 +171,6 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     public MainWindowViewModel()
     {
         _textSearchReplaceService = new DesignTimeTextSearchReplaceService();
-        SearchReplace = CreateSearchReplaceViewModel();
         ColumnSettings = new TrackGridColumnSettingsViewModel();
         DetailPane = new DetailPaneLayoutViewModel();
         CustomTagCatalog = new CustomTagCatalogViewModel(
@@ -181,6 +180,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
                 new CustomTagDefinition("LYRICIST", "作詞者", IsVisible: true)
             ]);
         CustomTagCatalog.DefinitionsChanged += OnCustomTagDefinitionsChanged;
+        SearchReplace = CreateSearchReplaceViewModel();
         SelectedTracks.CollectionChanged += OnSelectedTracksCollectionChanged;
 
         var sampleTrack = new FlacTrack
@@ -217,6 +217,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         DisplayedTracks.Add(item);
         SelectedTrack = Tracks[0];
         ReplaceSelectedTracks([Tracks[0]]);
+        SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
         CurrentSourcePath = @"C:\Music\Sample Album";
         StatusMessage = "1 件のFLACファイルを読み込みました";
     }
@@ -243,11 +244,11 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         _appSettingsService = appSettingsService ?? throw new ArgumentNullException(nameof(appSettingsService));
         _customTagDefinitionService = customTagDefinitionService ?? throw new ArgumentNullException(nameof(customTagDefinitionService));
 
-        SearchReplace = CreateSearchReplaceViewModel();
         ColumnSettings = new TrackGridColumnSettingsViewModel(_appSettingsService, message => StatusMessage = message);
         DetailPane = new DetailPaneLayoutViewModel(_appSettingsService, message => StatusMessage = message);
         CustomTagCatalog = new CustomTagCatalogViewModel(_customTagDefinitionService, message => StatusMessage = message);
         CustomTagCatalog.DefinitionsChanged += OnCustomTagDefinitionsChanged;
+        SearchReplace = CreateSearchReplaceViewModel();
 
         SelectedTracks.CollectionChanged += OnSelectedTracksCollectionChanged;
         _settingsLoadCts = new CancellationTokenSource();
@@ -510,6 +511,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
         SearchReplace.ResetForClearedTracks();
         ClearTracks();
+        SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
         CurrentSourcePath = string.Empty;
         OnPropertyChanged(nameof(HasTracks));
         RefreshDirtyState();
@@ -869,25 +871,30 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     private void OnCustomTagDefinitionsChanged(object? sender, EventArgs e)
     {
-        if (_disposed || Tracks.Count == 0)
+        if (_disposed)
         {
             return;
         }
 
-        _isBatchUpdatingTracks = true;
-        try
+        if (Tracks.Count > 0)
         {
-            foreach (var track in Tracks)
+            _isBatchUpdatingTracks = true;
+            try
             {
-                track.RefreshCustomTagDefinitions();
+                foreach (var track in Tracks)
+                {
+                    track.RefreshCustomTagDefinitions();
+                }
             }
-        }
-        finally
-        {
-            _isBatchUpdatingTracks = false;
+            finally
+            {
+                _isBatchUpdatingTracks = false;
+            }
+
+            RefreshDirtyState();
         }
 
-        RefreshDirtyState();
+        SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
         if (SearchReplace.IsOpen && !SearchReplace.IsExecutingReplace)
         {
             SearchReplace.RefreshResults(notifyFilter: true);
@@ -973,6 +980,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             }
 
             RefreshDirtyState();
+            SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
             if (SearchReplace.IsOpen)
             {
                 SearchReplace.RefreshResults(notifyFilter: true);
@@ -1034,6 +1042,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
 
         RefreshDirtyState();
+        SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
         if (SearchReplace.IsOpen)
         {
             SearchReplace.RefreshResults(notifyFilter: true);
@@ -1067,6 +1076,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
 
         RefreshDirtyState();
+        SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
         if (SearchReplace.IsOpen)
         {
             SearchReplace.RefreshResults(notifyFilter: true);
@@ -1356,6 +1366,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         CurrentSourcePath = sourceDescription;
 
         OnPropertyChanged(nameof(HasTracks));
+        SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
         SearchReplace.RefreshResults(notifyFilter: false);
         SyncDisplayedTracks();
         var firstTrack = DisplayedTracks.FirstOrDefault();
@@ -1400,6 +1411,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
 
         OnPropertyChanged(nameof(HasTracks));
+        SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
         SearchReplace.RefreshResults(notifyFilter: false);
         SyncDisplayedTracks();
 
@@ -1470,6 +1482,14 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         {
             NotifyArtworkCommandStates();
         }
+        else if (string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasUnregisteredCustomTags), StringComparison.Ordinal))
+        {
+            var selectionChanged = SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
+            if (selectionChanged && SearchReplace.IsOpen && !SearchReplace.IsExecutingReplace)
+            {
+                SearchReplace.RefreshResults(notifyFilter: true);
+            }
+        }
 
         if (SearchReplace.IsOpen
             && !SearchReplace.IsExecutingReplace
@@ -1533,7 +1553,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             selectTrack: SelectTrackFromSearch,
             isBusy: () => IsBusy,
             onFilterChanged: SyncDisplayedTracks,
-            onReplaceApplied: OnSearchReplaceApplied);
+            onReplaceApplied: OnSearchReplaceApplied,
+            getCustomTagDefinitions: () => CustomTagCatalog.Definitions);
     }
 
     private void SelectTrackFromSearch(TrackItemViewModel track)
@@ -1856,6 +1877,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             or nameof(TrackItemViewModel.AlbumArtist)
             or nameof(TrackItemViewModel.Genre)
             or nameof(TrackItemViewModel.Comment)
+            or TrackItemViewModel.CustomTagsChangedPropertyName
             or nameof(TrackItemViewModel.IsDirty);
     }
 
