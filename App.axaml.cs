@@ -43,6 +43,7 @@ public partial class App : Application
         // Services
         services.AddSingleton<IFlacTagService, FlacTagService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
+        services.AddSingleton<IArtworkService, ArtworkService>();
 
         // ViewModels
         services.AddSingleton<MainWindowViewModel>();

@@ -24,6 +24,7 @@
         </PackageReference>
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
+        <PackageReference Include="SkiaSharp" Version="3.119.4-preview.1.1" />
         <PackageReference Include="TagLibSharp" Version="2.3.0" />
         <PackageReference Include="TomlSettings" Version="1.0.0" />
     </ItemGroup>

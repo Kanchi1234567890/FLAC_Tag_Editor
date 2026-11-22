@@ -18,18 +18,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private const string OpenFolderDialogTitle = "FLACフォルダを選択";
     private const string OpenFilesDialogTitle = "FLACファイルを選択";
+    private const string OpenArtworkDialogTitle = "アートワーク画像を選択";
     private const string InitialStatusMessage = "フォルダまたはFLACファイルを選択してください";
 
     private readonly IFlacTagService? _flacTagService;
     private readonly IFileDialogService? _fileDialogService;
+    private readonly IArtworkService? _artworkService;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _saveCts;
+    private CancellationTokenSource? _artworkCts;
     private bool _disposed;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedTrack))]
     [NotifyCanExecuteChangedFor(nameof(SaveSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
     private TrackItemViewModel? _selectedTrack;
 
     [ObservableProperty]
@@ -40,6 +46,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyCanExecuteChangedFor(nameof(SaveAllCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertAllCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
     private bool _isLoading;
 
     [ObservableProperty]
@@ -50,7 +59,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyCanExecuteChangedFor(nameof(SaveAllCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertAllCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
     private bool _isSaving;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
+    [NotifyCanExecuteChangedFor(nameof(OpenFolderCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenFilesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveAllCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RevertAllCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SelectArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
+    private bool _isArtworkLoading;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDirtyTracks))]
@@ -109,15 +134,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ActivatorUtilitiesConstructor]
     public MainWindowViewModel(
         IFlacTagService flacTagService,
-        IFileDialogService fileDialogService)
+        IFileDialogService fileDialogService,
+        IArtworkService artworkService)
     {
         _flacTagService = flacTagService ?? throw new ArgumentNullException(nameof(flacTagService));
         _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
+        _artworkService = artworkService ?? throw new ArgumentNullException(nameof(artworkService));
     }
 
     public ObservableCollection<TrackItemViewModel> Tracks { get; } = new();
 
-    public bool IsBusy => IsLoading || IsSaving;
+    public bool IsBusy => IsLoading || IsSaving || IsArtworkLoading;
 
     public bool HasTracks => Tracks.Count > 0;
 
@@ -138,6 +165,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool CanRevertSelected => !IsBusy && SelectedTrack is { IsDirty: true };
 
     private bool CanRevertAll => !IsBusy && HasDirtyTracks;
+
+    private bool CanEditArtwork => !IsBusy && SelectedTrack is not null;
+
+    private bool CanRemoveArtwork => !IsBusy && SelectedTrack is { HasArtwork: true };
 
     [RelayCommand(CanExecute = nameof(CanOpen))]
     private async Task OpenFolderAsync()
@@ -179,6 +210,59 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         await LoadCoreAsync(
             ct => _flacTagService.LoadTracksFromFilesAsync(filePaths, ct),
             sourceLabel);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEditArtwork))]
+    private async Task SelectArtworkAsync()
+    {
+        if (_fileDialogService is null || _artworkService is null || SelectedTrack is not { } target)
+        {
+            return;
+        }
+
+        var imagePath = await _fileDialogService.OpenImageFileAsync(OpenArtworkDialogTitle);
+        if (string.IsNullOrWhiteSpace(imagePath))
+        {
+            return;
+        }
+
+        await ApplyArtworkCoreAsync(
+            target,
+            ct => _artworkService.LoadFromFileAsync(imagePath, ct),
+            "アートワークを読み込み中...");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRemoveArtwork))]
+    private void RemoveArtwork()
+    {
+        if (SelectedTrack is not { HasArtwork: true } target)
+        {
+            return;
+        }
+
+        target.RemoveArtwork();
+        RefreshDirtyState();
+        StatusMessage = $"{target.FileName} のアートワークを削除しました（未保存）";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEditArtwork))]
+    private async Task DropArtworkAsync(ArtworkDropPayload? payload)
+    {
+        if (_artworkService is null || SelectedTrack is not { } target)
+        {
+            return;
+        }
+
+        if (payload is null || !payload.HasAnyData)
+        {
+            StatusMessage = "ドロップされたデータから画像を取得できませんでした";
+            return;
+        }
+
+        await ApplyArtworkCoreAsync(
+            target,
+            ct => _artworkService.ResolveFromDropAsync(payload, ct),
+            "ドロップされたアートワークを取得中...");
     }
 
     [RelayCommand(CanExecute = nameof(CanSaveSelected))]
@@ -321,6 +405,40 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         StatusMessage = $"{dirtyTracks.Count} 件の変更を破棄しました";
     }
 
+    private async Task ApplyArtworkCoreAsync(
+        TrackItemViewModel target,
+        Func<CancellationToken, Task<ArtworkImage>> fetchOperation,
+        string progressMessage)
+    {
+        _artworkCts?.Cancel();
+        _artworkCts?.Dispose();
+        _artworkCts = new CancellationTokenSource();
+        var cancellationToken = _artworkCts.Token;
+
+        IsArtworkLoading = true;
+        StatusMessage = progressMessage;
+
+        try
+        {
+            var artwork = await fetchOperation(cancellationToken);
+            target.SetArtwork(artwork.Data, artwork.MimeType);
+            RefreshDirtyState();
+            StatusMessage = BuildArtworkAppliedMessage(target.FileName, artwork);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "アートワーク取得をキャンセルしました";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"アートワーク取得エラー: {ex.Message}";
+        }
+        finally
+        {
+            IsArtworkLoading = false;
+        }
+    }
+
     private async Task LoadCoreAsync(
         Func<CancellationToken, Task<TrackLoadResult>> loadOperation,
         string sourceDescription)
@@ -403,7 +521,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void OnTrackItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (string.Equals(e.PropertyName, nameof(TrackItemViewModel.IsDirty), StringComparison.Ordinal)
-            || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasValidationErrors), StringComparison.Ordinal))
+            || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasValidationErrors), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasArtwork), StringComparison.Ordinal))
         {
             RefreshDirtyState();
         }
@@ -416,6 +535,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         RevertSelectedCommand.NotifyCanExecuteChanged();
         SaveAllCommand.NotifyCanExecuteChanged();
         RevertAllCommand.NotifyCanExecuteChanged();
+        SelectArtworkCommand.NotifyCanExecuteChanged();
+        RemoveArtworkCommand.NotifyCanExecuteChanged();
+        DropArtworkCommand.NotifyCanExecuteChanged();
+    }
+
+    private static string BuildArtworkAppliedMessage(string fileName, ArtworkImage artwork)
+    {
+        if (artwork.WasConverted && !string.IsNullOrWhiteSpace(artwork.OriginalFormatName))
+        {
+            return $"{fileName} にアートワークを設定しました（{artwork.OriginalFormatName} → {artwork.MimeType} に変換・未保存）";
+        }
+
+        return $"{fileName} にアートワークを設定しました（{artwork.MimeType}・未保存）";
     }
 
     private static string BuildLoadStatusMessage(TrackLoadResult result)
@@ -459,6 +591,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _saveCts?.Cancel();
         _saveCts?.Dispose();
         _saveCts = null;
+
+        _artworkCts?.Cancel();
+        _artworkCts?.Dispose();
+        _artworkCts = null;
 
         ClearTracks();
     }

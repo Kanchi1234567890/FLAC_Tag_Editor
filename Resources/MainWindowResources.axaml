@@ -39,6 +39,8 @@
     <SolidColorBrush x:Key="DirtyBannerBorderColor" Color="#88FFC857"/>
     <SolidColorBrush x:Key="ErrorTextColor" Color="#FFFF6B6B"/>
     <SolidColorBrush x:Key="ErrorBorderColor" Color="#FFE05252"/>
+    <SolidColorBrush x:Key="DropTargetBorderColor" Color="#FF78B7FF"/>
+    <SolidColorBrush x:Key="DropTargetOverlayBackgroundColor" Color="#CC1A2B3D"/>
 
     <!-- Layout Sizes -->
     <GridLength x:Key="DetailPaneInitialWidth">380</GridLength>
@@ -80,9 +82,12 @@
     <Thickness x:Key="CustomTagCardPadding">8</Thickness>
     <Thickness x:Key="CustomTagCardMargin">0,0,0,8</Thickness>
     <Thickness x:Key="CompactButtonPadding">8,2</Thickness>
+    <Thickness x:Key="ArtworkActionButtonPadding">10,4</Thickness>
+    <Thickness x:Key="ArtworkHintPadding">12</Thickness>
     <Thickness x:Key="BottomBorderThickness">0,0,0,1</Thickness>
     <Thickness x:Key="TopBorderThickness">0,1,0,0</Thickness>
     <Thickness x:Key="ThinBorderThickness">1</Thickness>
+    <Thickness x:Key="DropHighlightBorderThickness">2</Thickness>
     <CornerRadius x:Key="DefaultCornerRadius">4</CornerRadius>
     <x:Double x:Key="ToolbarSpacing">8</x:Double>
     <x:Double x:Key="StatusRightSpacing">16</x:Double>
@@ -105,13 +110,18 @@
     <x:String x:Key="SaveAllToolTip">変更のあるすべてのトラックを保存 (Ctrl+Shift+S)</x:String>
     <x:String x:Key="RevertSelectedToolTip">選択中のトラックの未保存変更を元に戻す</x:String>
     <x:String x:Key="RevertAllToolTip">すべての未保存変更を元に戻す</x:String>
+    <x:String x:Key="SelectArtworkButtonText">画像を選択...</x:String>
+    <x:String x:Key="RemoveArtworkButtonText">削除</x:String>
+    <x:String x:Key="SelectArtworkToolTip">ローカル画像ファイルからアートワークを設定（JPEG/PNG以外も自動変換）</x:String>
+    <x:String x:Key="RemoveArtworkToolTip">選択中トラックのアートワークを削除</x:String>
+    <x:String x:Key="ArtworkDropActiveText">ここにドロップして設定</x:String>
     <x:String x:Key="AddCustomTagButtonText">+ 追加</x:String>
     <x:String x:Key="RemoveCustomTagButtonText">×</x:String>
     <x:String x:Key="RemoveCustomTagToolTip">この独自タグを削除</x:String>
     <x:String x:Key="UnsavedTrackBannerText">● 未保存の変更があります</x:String>
     <x:String x:Key="EmptyListPlaceholderText">「フォルダを開く」または「ファイルを開く」からFLACファイルを読み込んでください</x:String>
     <x:String x:Key="NoSelectionPlaceholderText">左の一覧からトラックを選択すると詳細タグが表示されます</x:String>
-    <x:String x:Key="NoArtworkPlaceholderText">No Artwork</x:String>
+    <x:String x:Key="NoArtworkPlaceholderText">No Artwork&#x0a;（画像ファイル / Web画像をドロップ）</x:String>
     <x:String x:Key="NoCustomTagsPlaceholderText">独自タグはありません（「+ 追加」から追加できます）</x:String>
     <x:String x:Key="CounterSeparatorText">/</x:String>
     <x:String x:Key="CounterNumberPlaceholder">番号</x:String>

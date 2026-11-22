@@ -5,6 +5,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="760"
+        x:Name="RootWindow"
         x:Class="FLAC_Tag_Editor.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
@@ -71,6 +72,20 @@
         </Style>
         <Style Selector="Border.dirty-banner.visible">
             <Setter Property="Opacity" Value="1"/>
+        </Style>
+        <Style Selector="Border.artwork-drop-target">
+            <Setter Property="BorderBrush" Value="{DynamicResource MainWindowBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+        </Style>
+        <Style Selector="Border.artwork-drop-target.drag-over">
+            <Setter Property="BorderBrush" Value="{DynamicResource DropTargetBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource DropHighlightBorderThickness}"/>
+        </Style>
+        <Style Selector="Border.artwork-drop-overlay">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="Border.artwork-drop-target.drag-over Border.artwork-drop-overlay">
+            <Setter Property="IsVisible" Value="True"/>
         </Style>
     </Window.Styles>
 
@@ -310,16 +325,17 @@
                                         DataContext="{Binding SelectedTrack}"
                                         x:DataType="vm:TrackItemViewModel">
 
-                                <!-- アートワーク表示 -->
+                                <!-- アートワーク表示・設定（D&D対応） -->
                                 <StackPanel HorizontalAlignment="Center"
                                             Spacing="{DynamicResource DetailItemSpacing}">
                                     <Border Width="{DynamicResource ArtworkContainerSize}"
                                             Height="{DynamicResource ArtworkContainerSize}"
                                             Background="{DynamicResource CardBackgroundColor}"
-                                            BorderBrush="{DynamicResource MainWindowBorderColor}"
-                                            BorderThickness="{DynamicResource ThinBorderThickness}"
                                             CornerRadius="{DynamicResource DefaultCornerRadius}"
-                                            ClipToBounds="True">
+                                            ClipToBounds="True"
+                                            Classes="artwork-drop-target"
+                                            DragDrop.AllowDrop="True"
+                                            views:ArtworkDropBehavior.DropCommand="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DropArtworkCommand}">
                                         <Grid>
                                             <Image Source="{Binding ArtworkBitmap}"
                                                    Stretch="Uniform"
@@ -327,15 +343,47 @@
                                             <TextBlock Text="{DynamicResource NoArtworkPlaceholderText}"
                                                        IsVisible="{Binding !HasArtwork}"
                                                        Foreground="{DynamicResource SecondaryTextColor}"
-                                                       FontSize="{DynamicResource BodyFontSize}"
+                                                       FontSize="{DynamicResource LabelFontSize}"
+                                                       TextWrapping="Wrap"
+                                                       TextAlignment="Center"
+                                                       Padding="{DynamicResource ArtworkHintPadding}"
                                                        HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"/>
+                                            <Border Classes="artwork-drop-overlay"
+                                                    Background="{DynamicResource DropTargetOverlayBackgroundColor}"
+                                                    IsHitTestVisible="False">
+                                                <TextBlock Text="{DynamicResource ArtworkDropActiveText}"
+                                                           Foreground="{DynamicResource TextColor}"
+                                                           FontSize="{DynamicResource BodyFontSize}"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap"
+                                                           TextAlignment="Center"
+                                                           Padding="{DynamicResource ArtworkHintPadding}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
                                         </Grid>
                                     </Border>
                                     <TextBlock Text="{Binding ArtworkInfoDisplay}"
                                                Foreground="{DynamicResource SecondaryTextColor}"
                                                FontSize="{DynamicResource LabelFontSize}"
                                                HorizontalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal"
+                                                HorizontalAlignment="Center"
+                                                Spacing="{DynamicResource DetailItemSpacing}">
+                                        <Button Content="{DynamicResource SelectArtworkButtonText}"
+                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SelectArtworkCommand}"
+                                                ToolTip.Tip="{DynamicResource SelectArtworkToolTip}"
+                                                Padding="{DynamicResource ArtworkActionButtonPadding}"
+                                                MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                FontSize="{DynamicResource LabelFontSize}"/>
+                                        <Button Content="{DynamicResource RemoveArtworkButtonText}"
+                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).RemoveArtworkCommand}"
+                                                ToolTip.Tip="{DynamicResource RemoveArtworkToolTip}"
+                                                Padding="{DynamicResource ArtworkActionButtonPadding}"
+                                                MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                FontSize="{DynamicResource LabelFontSize}"/>
+                                    </StackPanel>
                                 </StackPanel>
 
                                 <!-- 基本タグ -->
