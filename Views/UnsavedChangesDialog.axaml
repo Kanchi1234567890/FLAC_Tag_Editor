@@ -1,0 +1,82 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FLAC_Tag_Editor.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="200"
+        x:Class="FLAC_Tag_Editor.Views.UnsavedChangesDialog"
+        x:DataType="vm:UnsavedChangesDialogViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{Binding Title}"
+        Width="{DynamicResource UnsavedDialogWidth}"
+        SizeToContent="Height"
+        CanResize="False"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource DetailPaneBackgroundColor}"
+        BorderBrush="{DynamicResource MainWindowBorderColor}">
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}"/>
+    </Window.KeyBindings>
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="../Resources/MainWindowResources.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.dialog-primary">
+            <Setter Property="Background" Value="{DynamicResource SearchOptionCheckedBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SearchOptionCheckedBorderColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Window.Styles>
+
+    <Design.DataContext>
+        <vm:UnsavedChangesDialogViewModel/>
+    </Design.DataContext>
+
+    <StackPanel Margin="{DynamicResource UnsavedDialogPadding}"
+                Spacing="{DynamicResource UnsavedDialogSectionSpacing}">
+        <TextBlock Text="{Binding Message}"
+                   Foreground="{DynamicResource TextColor}"
+                   FontSize="{DynamicResource BodyFontSize}"
+                   TextWrapping="Wrap"
+                   LineHeight="{DynamicResource UnsavedDialogLineHeight}"/>
+
+        <Border IsVisible="{Binding HasWarningMessage}"
+                Background="{DynamicResource DirtyBannerBackgroundColor}"
+                BorderBrush="{DynamicResource ErrorBorderColor}"
+                BorderThickness="{DynamicResource ThinBorderThickness}"
+                CornerRadius="{DynamicResource DefaultCornerRadius}"
+                Padding="{DynamicResource DirtyBannerPadding}">
+            <TextBlock Text="{Binding WarningMessage}"
+                       Foreground="{DynamicResource ErrorTextColor}"
+                       FontSize="{DynamicResource LabelFontSize}"
+                       TextWrapping="Wrap"/>
+        </Border>
+
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="{DynamicResource ToolbarSpacing}"
+                    Margin="{DynamicResource UnsavedDialogButtonsMargin}">
+            <Button Content="{Binding SaveButtonText}"
+                    Command="{Binding SaveAndContinueCommand}"
+                    Classes="dialog-primary"
+                    IsDefault="{Binding CanSave}"
+                    Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+            <Button Content="{Binding DiscardButtonText}"
+                    Command="{Binding DiscardAndContinueCommand}"
+                    Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+            <Button Content="{Binding CancelButtonText}"
+                    Command="{Binding CancelCommand}"
+                    IsCancel="True"
+                    Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

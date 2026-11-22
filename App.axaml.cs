@@ -43,6 +43,7 @@ public partial class App : Application
         // Services
         services.AddSingleton<IFlacTagService, FlacTagService>();
         services.AddSingleton<IFileDialogService, FileDialogService>();
+        services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IArtworkService, ArtworkService>();
         services.AddSingleton<IClipboardService, ClipboardService>();
         services.AddSingleton<ITsvPasteService, TsvPasteService>();

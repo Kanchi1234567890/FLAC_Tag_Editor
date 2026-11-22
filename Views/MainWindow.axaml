@@ -20,7 +20,8 @@
         WindowDecorations="{DynamicResource MainWindowDecorations}"
         WindowStartupLocation="{DynamicResource MainWindowStartupLocation}"
         BorderBrush="{DynamicResource MainWindowBorderColor}"
-        Topmost="{DynamicResource MainWindowTopmost}">
+        Topmost="{DynamicResource MainWindowTopmost}"
+        views:WindowClosingBehavior.CloseGuard="{Binding}">
 
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveSelectedCommand}"/>
@@ -133,10 +134,30 @@
                 <StackPanel Grid.Column="0"
                             Orientation="Horizontal"
                             Spacing="{DynamicResource ToolbarSpacing}">
-                    <Button Content="{DynamicResource OpenFolderButtonText}"
-                            Command="{Binding OpenFolderCommand}"/>
-                    <Button Content="{DynamicResource OpenFilesButtonText}"
-                            Command="{Binding OpenFilesCommand}"/>
+                    <SplitButton Content="{DynamicResource OpenFolderButtonText}"
+                                 Command="{Binding OpenFolderCommand}"
+                                 ToolTip.Tip="{DynamicResource OpenFolderToolTip}">
+                        <SplitButton.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="{DynamicResource OpenFolderReplaceMenuText}"
+                                          Command="{Binding OpenFolderCommand}"/>
+                                <MenuItem Header="{DynamicResource AppendFolderMenuText}"
+                                          Command="{Binding AppendFolderCommand}"/>
+                            </MenuFlyout>
+                        </SplitButton.Flyout>
+                    </SplitButton>
+                    <SplitButton Content="{DynamicResource OpenFilesButtonText}"
+                                 Command="{Binding OpenFilesCommand}"
+                                 ToolTip.Tip="{DynamicResource OpenFilesToolTip}">
+                        <SplitButton.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="{DynamicResource OpenFilesReplaceMenuText}"
+                                          Command="{Binding OpenFilesCommand}"/>
+                                <MenuItem Header="{DynamicResource AppendFilesMenuText}"
+                                          Command="{Binding AppendFilesCommand}"/>
+                            </MenuFlyout>
+                        </SplitButton.Flyout>
+                    </SplitButton>
 
                     <Border Width="{DynamicResource ToolbarSeparatorWidth}"
                             Height="{DynamicResource ToolbarSeparatorHeight}"

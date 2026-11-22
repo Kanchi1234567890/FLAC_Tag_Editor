@@ -14,13 +14,17 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace FLAC_Tag_Editor.ViewModels;
 
-public partial class MainWindowViewModel : ViewModelBase, IDisposable
+public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDisposable
 {
     private const string OpenFolderDialogTitle = "FLACフォルダを選択";
+    private const string AppendFolderDialogTitle = "追加するFLACフォルダを選択";
     private const string OpenFilesDialogTitle = "FLACファイルを選択";
+    private const string AppendFilesDialogTitle = "追加するFLACファイルを選択";
     private const string OpenArtworkDialogTitle = "アートワーク画像を選択";
     private const string InitialStatusMessage = "フォルダまたはFLACファイルを選択してください";
     private const string DuplicateFileNameErrorMessage = "同一フォルダ内に同名のファイルが重複しています。";
+    private const string CloseWhileSavingMessage = "保存処理の完了後にウィンドウを閉じてください";
+    private const string SaveWhileBusyMessage = "他の処理の完了後に再度お試しください";
     private static readonly TrackGridColumnKind[] DefaultGridColumns =
     [
         TrackGridColumnKind.Dirty,
@@ -36,6 +40,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private readonly IFlacTagService? _flacTagService;
     private readonly IFileDialogService? _fileDialogService;
+    private readonly IDialogService? _dialogService;
     private readonly IArtworkService? _artworkService;
     private readonly IClipboardService? _clipboardService;
     private readonly ITsvPasteService? _tsvPasteService;
@@ -58,7 +63,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusy))]
     [NotifyCanExecuteChangedFor(nameof(OpenFolderCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AppendFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenFilesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AppendFilesCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveAllCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
@@ -72,7 +79,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusy))]
     [NotifyCanExecuteChangedFor(nameof(OpenFolderCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AppendFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenFilesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AppendFilesCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveAllCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
@@ -86,7 +95,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusy))]
     [NotifyCanExecuteChangedFor(nameof(OpenFolderCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AppendFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenFilesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AppendFilesCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveAllCommand))]
     [NotifyCanExecuteChangedFor(nameof(RevertSelectedCommand))]
@@ -159,6 +170,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public MainWindowViewModel(
         IFlacTagService flacTagService,
         IFileDialogService fileDialogService,
+        IDialogService dialogService,
         IArtworkService artworkService,
         IClipboardService clipboardService,
         ITsvPasteService tsvPasteService,
@@ -166,6 +178,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         _flacTagService = flacTagService ?? throw new ArgumentNullException(nameof(flacTagService));
         _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _artworkService = artworkService ?? throw new ArgumentNullException(nameof(artworkService));
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _tsvPasteService = tsvPasteService ?? throw new ArgumentNullException(nameof(tsvPasteService));
@@ -191,6 +204,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public bool HasDirtyTracks => DirtyTrackCount > 0;
 
+    public bool ShouldInterceptClose => IsSaving || HasDirtyTracks;
+
     public string DirtyCountText => HasDirtyTracks ? $"未保存: {DirtyTrackCount} 件" : string.Empty;
 
     public string TrackCountText => SearchReplace.IsFilterActive
@@ -213,6 +228,30 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private bool CanPasteTsv => !IsBusy && HasTracks;
 
+    public async Task<bool> ConfirmCloseAsync()
+    {
+        if (IsSaving)
+        {
+            StatusMessage = CloseWhileSavingMessage;
+            return false;
+        }
+
+        if (!HasDirtyTracks)
+        {
+            CancelNonSavingOperations();
+            return true;
+        }
+
+        var canProceed = await ConfirmUnsavedChangesBeforeActionAsync(forApplicationClose: true);
+        if (!canProceed)
+        {
+            return false;
+        }
+
+        CancelNonSavingOperations();
+        return true;
+    }
+
     [RelayCommand(CanExecute = nameof(CanOpen))]
     private async Task OpenFolderAsync()
     {
@@ -227,9 +266,35 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        if (!await ConfirmUnsavedChangesBeforeActionAsync(forApplicationClose: false))
+        {
+            return;
+        }
+
         await LoadCoreAsync(
             ct => _flacTagService.LoadTracksFromFolderAsync(folderPath, includeSubdirectories: true, ct),
-            folderPath);
+            folderPath,
+            TrackLoadMode.Replace);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpen))]
+    private async Task AppendFolderAsync()
+    {
+        if (_fileDialogService is null || _flacTagService is null)
+        {
+            return;
+        }
+
+        var folderPath = await _fileDialogService.OpenFolderAsync(AppendFolderDialogTitle);
+        if (string.IsNullOrWhiteSpace(folderPath))
+        {
+            return;
+        }
+
+        await LoadCoreAsync(
+            ct => _flacTagService.LoadTracksFromFolderAsync(folderPath, includeSubdirectories: true, ct),
+            folderPath,
+            TrackLoadMode.Append);
     }
 
     [RelayCommand(CanExecute = nameof(CanOpen))]
@@ -246,13 +311,39 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var sourceLabel = filePaths.Count == 1
-            ? filePaths[0]
-            : $"{Path.GetDirectoryName(filePaths[0])} ({filePaths.Count} ファイル選択)";
+        if (!await ConfirmUnsavedChangesBeforeActionAsync(forApplicationClose: false))
+        {
+            return;
+        }
+
+        var sourceLabel = BuildFileSelectionSourceLabel(filePaths);
 
         await LoadCoreAsync(
             ct => _flacTagService.LoadTracksFromFilesAsync(filePaths, ct),
-            sourceLabel);
+            sourceLabel,
+            TrackLoadMode.Replace);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpen))]
+    private async Task AppendFilesAsync()
+    {
+        if (_fileDialogService is null || _flacTagService is null)
+        {
+            return;
+        }
+
+        var filePaths = await _fileDialogService.OpenFlacFilesAsync(AppendFilesDialogTitle);
+        if (filePaths.Count == 0)
+        {
+            return;
+        }
+
+        var sourceLabel = BuildFileSelectionSourceLabel(filePaths);
+
+        await LoadCoreAsync(
+            ct => _flacTagService.LoadTracksFromFilesAsync(filePaths, ct),
+            sourceLabel,
+            TrackLoadMode.Append);
     }
 
     [RelayCommand(CanExecute = nameof(CanEditArtwork))]
@@ -470,15 +561,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand(CanExecute = nameof(CanSaveAll))]
     private async Task SaveAllAsync()
     {
+        await SaveAllCoreAsync();
+    }
+
+    private async Task<bool> SaveAllCoreAsync()
+    {
         if (_flacTagService is null)
         {
-            return;
+            return false;
+        }
+
+        if (IsBusy)
+        {
+            StatusMessage = SaveWhileBusyMessage;
+            return false;
         }
 
         var dirtyTracks = Tracks.Where(t => t.IsDirty).ToList();
         if (dirtyTracks.Count == 0)
         {
-            return;
+            return true;
         }
 
         _saveCts?.Dispose();
@@ -524,14 +626,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
 
             StatusMessage = BuildSaveStatusMessage(result);
+            return result.Errors.Count == 0 && !HasDirtyTracks;
         }
         catch (OperationCanceledException)
         {
             StatusMessage = "保存をキャンセルしました";
+            return false;
         }
         catch (Exception ex)
         {
             StatusMessage = $"一括保存エラー: {ex.Message}";
+            return false;
         }
         finally
         {
@@ -580,6 +685,53 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         StatusMessage = $"{dirtyTracks.Count} 件の変更を破棄しました";
     }
 
+    private async Task<bool> ConfirmUnsavedChangesBeforeActionAsync(bool forApplicationClose)
+    {
+        if (!HasDirtyTracks || _dialogService is null)
+        {
+            return true;
+        }
+
+        var invalidDirtyCount = Tracks.Count(t => t.IsDirty && t.HasValidationErrors);
+        var canSaveAll = invalidDirtyCount == 0 && !IsBusy;
+
+        string? warningMessage = null;
+        if (invalidDirtyCount > 0)
+        {
+            warningMessage = $"入力エラー（予約キー・ファイル名重複など）がある未保存トラックが {invalidDirtyCount} 件あるため、そのまま保存できません。エラーを修正するか、変更を破棄して続行してください。";
+        }
+        else if (IsBusy)
+        {
+            warningMessage = "他の処理が実行中のため、いま保存することはできません。処理完了を待つか、変更を破棄して続行してください。";
+        }
+
+        var context = forApplicationClose
+            ? new UnsavedChangesPromptContext(
+                Title: "未保存の変更があります",
+                Message: $"未保存の変更が {DirtyTrackCount} 件あります。アプリケーションを終了する前に保存しますか？",
+                WarningMessage: warningMessage,
+                SaveButtonText: "保存して終了",
+                DiscardButtonText: "破棄して終了",
+                CancelButtonText: "キャンセル",
+                CanSave: canSaveAll)
+            : new UnsavedChangesPromptContext(
+                Title: "未保存の変更があります",
+                Message: $"未保存の変更が {DirtyTrackCount} 件あります。一覧を置き換えて読み込み直す前に保存しますか？",
+                WarningMessage: warningMessage,
+                SaveButtonText: "保存して開く",
+                DiscardButtonText: "破棄して開く",
+                CancelButtonText: "キャンセル",
+                CanSave: canSaveAll);
+
+        var action = await _dialogService.ConfirmUnsavedChangesAsync(context);
+        return action switch
+        {
+            UnsavedChangesAction.SaveAndContinue => await SaveAllCoreAsync(),
+            UnsavedChangesAction.DiscardAndContinue => true,
+            _ => false
+        };
+    }
+
     private async Task ApplyArtworkCoreAsync(
         TrackItemViewModel target,
         Func<CancellationToken, Task<ArtworkImage>> fetchOperation,
@@ -616,7 +768,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private async Task LoadCoreAsync(
         Func<CancellationToken, Task<TrackLoadResult>> loadOperation,
-        string sourceDescription)
+        string sourceDescription,
+        TrackLoadMode loadMode)
     {
         _loadCts?.Cancel();
         _loadCts?.Dispose();
@@ -624,12 +777,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var cancellationToken = _loadCts.Token;
 
         IsLoading = true;
-        StatusMessage = "FLACファイルを読み込み中...";
+        StatusMessage = loadMode == TrackLoadMode.Append
+            ? "FLACファイルを追加読み込み中..."
+            : "FLACファイルを読み込み中...";
 
         try
         {
             var result = await loadOperation(cancellationToken);
-            ReplaceTracks(result, sourceDescription);
+            if (loadMode == TrackLoadMode.Append)
+            {
+                AppendTracks(result, sourceDescription);
+            }
+            else
+            {
+                ReplaceTracks(result, sourceDescription);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -646,14 +808,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// 現在のトラック一覧を新しい読み込み結果で置き換える（将来的に追記モードも分離可能）。
+    /// 現在のトラック一覧を新しい読み込み結果で置き換える。
     /// </summary>
     private void ReplaceTracks(TrackLoadResult result, string sourceDescription)
     {
         ClearTracks();
 
+        var existingPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var track in result.Tracks)
         {
+            if (!existingPaths.Add(NormalizeFilePath(track.FilePath)))
+            {
+                continue;
+            }
+
             var item = new TrackItemViewModel(track);
             AttachTrack(item);
             Tracks.Add(item);
@@ -668,6 +836,52 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         RefreshDirtyState();
 
         StatusMessage = BuildLoadStatusMessage(result);
+    }
+
+    /// <summary>
+    /// 現在のトラック一覧の末尾へ、重複ファイルを除外して新しい読み込み結果を追加する。
+    /// </summary>
+    private void AppendTracks(TrackLoadResult result, string sourceDescription)
+    {
+        var wasEmpty = Tracks.Count == 0;
+        var existingPaths = new HashSet<string>(
+            Tracks.Select(t => NormalizeFilePath(t.FilePath)),
+            StringComparer.OrdinalIgnoreCase);
+
+        var addedCount = 0;
+        var skippedDuplicateCount = 0;
+
+        foreach (var track in result.Tracks)
+        {
+            var normalizedPath = NormalizeFilePath(track.FilePath);
+            if (!existingPaths.Add(normalizedPath))
+            {
+                skippedDuplicateCount++;
+                continue;
+            }
+
+            var item = new TrackItemViewModel(track);
+            AttachTrack(item);
+            Tracks.Add(item);
+            addedCount++;
+        }
+
+        if (addedCount > 0)
+        {
+            CurrentSourcePath = ResolveAppendedSourcePath(wasEmpty, CurrentSourcePath, sourceDescription, Tracks.Count);
+        }
+
+        OnPropertyChanged(nameof(HasTracks));
+        SearchReplace.RefreshResults(notifyFilter: false);
+        SyncDisplayedTracks();
+
+        if (SelectedTrack is null)
+        {
+            SelectedTrack = DisplayedTracks.FirstOrDefault();
+        }
+
+        RefreshDirtyState();
+        StatusMessage = BuildAppendStatusMessage(addedCount, skippedDuplicateCount, result.Errors.Count);
     }
 
     private void ClearTracks()
@@ -686,6 +900,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(HasDisplayedTracks));
         OnPropertyChanged(nameof(IsFilterEmpty));
         OnPropertyChanged(nameof(TrackCountText));
+    }
+
+    private void CancelNonSavingOperations()
+    {
+        _loadCts?.Cancel();
+        _artworkCts?.Cancel();
     }
 
     private void AttachTrack(TrackItemViewModel item)
@@ -845,6 +1065,49 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private static string NormalizeFilePath(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            return Path.GetFullPath(filePath);
+        }
+        catch
+        {
+            return filePath;
+        }
+    }
+
+    private static string BuildFileSelectionSourceLabel(IReadOnlyList<string> filePaths)
+    {
+        return filePaths.Count == 1
+            ? filePaths[0]
+            : $"{Path.GetDirectoryName(filePaths[0])} ({filePaths.Count} ファイル選択)";
+    }
+
+    private static string ResolveAppendedSourcePath(
+        bool wasEmpty,
+        string currentSourcePath,
+        string newSourceDescription,
+        int totalTrackCount)
+    {
+        if (wasEmpty || string.IsNullOrWhiteSpace(currentSourcePath))
+        {
+            return newSourceDescription;
+        }
+
+        if (string.Equals(currentSourcePath, newSourceDescription, StringComparison.OrdinalIgnoreCase))
+        {
+            return currentSourcePath;
+        }
+
+        return $"複数ソース（合計 {totalTrackCount} 件）";
+    }
+
     private static bool HasSameSequence(
         ObservableCollection<TrackItemViewModel> current,
         List<TrackItemViewModel> desired)
@@ -1002,6 +1265,42 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         return $"{result.Tracks.Count} 件のFLACファイルを読み込みました";
+    }
+
+    private static string BuildAppendStatusMessage(int addedCount, int skippedDuplicateCount, int errorCount)
+    {
+        if (addedCount == 0 && skippedDuplicateCount == 0 && errorCount == 0)
+        {
+            return "追加対象のFLACファイルが見つかりませんでした";
+        }
+
+        var notes = new List<string>(2);
+        if (skippedDuplicateCount > 0)
+        {
+            notes.Add($"重複 {skippedDuplicateCount} 件スキップ");
+        }
+
+        if (errorCount > 0)
+        {
+            notes.Add($"{errorCount} 件エラー");
+        }
+
+        if (addedCount == 0)
+        {
+            if (skippedDuplicateCount > 0 && errorCount == 0)
+            {
+                return $"選択されたファイルはすべて読み込み済みです（重複 {skippedDuplicateCount} 件スキップ）";
+            }
+
+            return $"追加されたFLACファイルはありません（{string.Join("・", notes)}）";
+        }
+
+        if (notes.Count > 0)
+        {
+            return $"{addedCount} 件のFLACファイルを追加しました（{string.Join("・", notes)}）";
+        }
+
+        return $"{addedCount} 件のFLACファイルを追加しました";
     }
 
     private static string BuildSaveStatusMessage(TrackSaveResult result)
