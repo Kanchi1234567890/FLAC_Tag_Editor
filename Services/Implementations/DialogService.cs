@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -41,6 +42,39 @@ public sealed class DialogService : IDialogService
         {
             var result = await dialog.ShowDialog<UnsavedChangesAction?>(owner);
             return result ?? UnsavedChangesAction.Cancel;
+        }
+        finally
+        {
+            viewModel.CloseRequested -= OnCloseRequested;
+        }
+    }
+
+    public async Task<IReadOnlyList<CustomTagDefinition>?> ShowCustomTagManagerAsync(
+        IReadOnlyList<CustomTagDefinition> currentDefinitions)
+    {
+        ArgumentNullException.ThrowIfNull(currentDefinitions);
+
+        var owner = GetMainWindow();
+        if (owner is null)
+        {
+            return null;
+        }
+
+        var viewModel = new CustomTagManagerDialogViewModel(currentDefinitions);
+        var dialog = new CustomTagManagerDialog
+        {
+            DataContext = viewModel
+        };
+
+        void OnCloseRequested(IReadOnlyList<CustomTagDefinition>? definitions)
+        {
+            dialog.Close(definitions);
+        }
+
+        viewModel.CloseRequested += OnCloseRequested;
+        try
+        {
+            return await dialog.ShowDialog<IReadOnlyList<CustomTagDefinition>?>(owner);
         }
         finally
         {

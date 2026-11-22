@@ -1,0 +1,233 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FLAC_Tag_Editor.ViewModels"
+        xmlns:views="using:FLAC_Tag_Editor.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="620" d:DesignHeight="480"
+        x:Class="FLAC_Tag_Editor.Views.CustomTagManagerDialog"
+        x:DataType="vm:CustomTagManagerDialogViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{DynamicResource CustomTagManagerDialogTitle}"
+        Width="{DynamicResource CustomTagManagerDialogWidth}"
+        Height="{DynamicResource CustomTagManagerDialogHeight}"
+        MinWidth="{DynamicResource CustomTagManagerDialogMinWidth}"
+        MinHeight="{DynamicResource CustomTagManagerDialogMinHeight}"
+        CanResize="True"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource DetailPaneBackgroundColor}"
+        BorderBrush="{DynamicResource MainWindowBorderColor}">
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}"/>
+    </Window.KeyBindings>
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="../Resources/MainWindowResources.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.dialog-primary">
+            <Setter Property="Background" Value="{DynamicResource SearchOptionCheckedBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SearchOptionCheckedBorderColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style Selector="TextBox.editable-field">
+            <Setter Property="Background" Value="{DynamicResource EditableFieldBackgroundColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource EditableFieldBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="FontSize" Value="{DynamicResource BodyFontSize}"/>
+        </Style>
+
+        <Style Selector="TextBox.editable-field.error">
+            <Setter Property="BorderBrush" Value="{DynamicResource ErrorBorderColor}"/>
+        </Style>
+    </Window.Styles>
+
+    <Design.DataContext>
+        <vm:CustomTagManagerDialogViewModel/>
+    </Design.DataContext>
+
+    <Grid Margin="{DynamicResource UnsavedDialogPadding}"
+          RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+        <!-- 説明・注意事項 -->
+        <StackPanel Grid.Row="0"
+                    Spacing="{DynamicResource SmallItemSpacing}"
+                    Margin="{DynamicResource CustomTagManagerDescriptionMargin}">
+            <TextBlock Text="{DynamicResource CustomTagManagerDescriptionText}"
+                       Foreground="{DynamicResource TextColor}"
+                       FontSize="{DynamicResource BodyFontSize}"
+                       TextWrapping="Wrap"/>
+            <TextBlock Text="{DynamicResource CustomTagManagerNoteText}"
+                       Foreground="{DynamicResource SecondaryTextColor}"
+                       FontSize="{DynamicResource LabelFontSize}"
+                       TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- カラムヘッダー -->
+        <Grid Grid.Row="1"
+              ColumnDefinitions="Auto,*,*,Auto"
+              ColumnSpacing="{DynamicResource DetailItemSpacing}"
+              Margin="{DynamicResource CustomTagManagerHeaderMargin}">
+            <TextBlock Grid.Column="0"
+                       Width="{DynamicResource CustomTagManagerVisibleColWidth}"
+                       Text="{DynamicResource CustomTagManagerColVisibleText}"
+                       Foreground="{DynamicResource SecondaryTextColor}"
+                       FontSize="{DynamicResource LabelFontSize}"
+                       FontWeight="SemiBold"
+                       TextAlignment="Center"/>
+            <TextBlock Grid.Column="1"
+                       Text="{DynamicResource CustomTagManagerColKeyText}"
+                       Foreground="{DynamicResource SecondaryTextColor}"
+                       FontSize="{DynamicResource LabelFontSize}"
+                       FontWeight="SemiBold"/>
+            <TextBlock Grid.Column="2"
+                       Text="{DynamicResource CustomTagManagerColLabelText}"
+                       Foreground="{DynamicResource SecondaryTextColor}"
+                       FontSize="{DynamicResource LabelFontSize}"
+                       FontWeight="SemiBold"/>
+            <TextBlock Grid.Column="3"
+                       Text="{DynamicResource CustomTagManagerColOrderText}"
+                       Foreground="{DynamicResource SecondaryTextColor}"
+                       FontSize="{DynamicResource LabelFontSize}"
+                       FontWeight="SemiBold"
+                       Width="{DynamicResource CustomTagManagerOrderHeaderWidth}"
+                       TextAlignment="Center"/>
+        </Grid>
+
+        <!-- 定義リスト領域 -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource MainWindowBackgroundColor}"
+                BorderBrush="{DynamicResource MainWindowBorderColor}"
+                BorderThickness="{DynamicResource ThinBorderThickness}"
+                CornerRadius="{DynamicResource DefaultCornerRadius}"
+                Padding="{DynamicResource CustomTagCardPadding}">
+            <Grid>
+                <TextBlock Text="{DynamicResource CustomTagManagerEmptyText}"
+                           IsVisible="{Binding !HasItems}"
+                           Foreground="{DynamicResource SecondaryTextColor}"
+                           FontSize="{DynamicResource BodyFontSize}"
+                           TextWrapping="Wrap"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextAlignment="Center"/>
+
+                <ScrollViewer IsVisible="{Binding HasItems}"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Items}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:CustomTagDefinitionRowViewModel">
+                                <Border Background="{DynamicResource CardBackgroundColor}"
+                                        BorderBrush="{DynamicResource MainWindowBorderColor}"
+                                        BorderThickness="{DynamicResource ThinBorderThickness}"
+                                        CornerRadius="{DynamicResource DefaultCornerRadius}"
+                                        Padding="{DynamicResource CustomTagManagerRowPadding}"
+                                        Margin="{DynamicResource CustomTagManagerRowMargin}">
+                                    <StackPanel Spacing="{DynamicResource SmallItemSpacing}">
+                                        <Grid ColumnDefinitions="Auto,*,*,Auto"
+                                              ColumnSpacing="{DynamicResource DetailItemSpacing}">
+                                            <Border Grid.Column="0"
+                                                    Width="{DynamicResource CustomTagManagerVisibleColWidth}">
+                                                <CheckBox IsChecked="{Binding IsVisible, Mode=TwoWay}"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"/>
+                                            </Border>
+
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Key, Mode=TwoWay}"
+                                                     PlaceholderText="{DynamicResource CustomTagKeyPlaceholder}"
+                                                     Classes="editable-field"
+                                                     Classes.error="{Binding HasKeyError}"
+                                                     views:FocusBehavior.IsFocusRequested="{Binding IsFocusRequested, Mode=TwoWay}"/>
+
+                                            <TextBox Grid.Column="2"
+                                                     Text="{Binding Label, Mode=TwoWay}"
+                                                     PlaceholderText="{DynamicResource CustomTagLabelPlaceholder}"
+                                                     Classes="editable-field"/>
+
+                                            <StackPanel Grid.Column="3"
+                                                        Orientation="Horizontal"
+                                                        Spacing="{DynamicResource SmallItemSpacing}"
+                                                        VerticalAlignment="Center">
+                                                <Button Content="{DynamicResource CustomTagManagerMoveUpButtonText}"
+                                                        Command="{Binding MoveUpCommand}"
+                                                        ToolTip.Tip="{DynamicResource CustomTagManagerMoveUpToolTip}"
+                                                        Width="{DynamicResource CustomTagManagerActionButtonWidth}"
+                                                        Padding="{DynamicResource CompactButtonPadding}"
+                                                        HorizontalContentAlignment="Center"/>
+                                                <Button Content="{DynamicResource CustomTagManagerMoveDownButtonText}"
+                                                        Command="{Binding MoveDownCommand}"
+                                                        ToolTip.Tip="{DynamicResource CustomTagManagerMoveDownToolTip}"
+                                                        Width="{DynamicResource CustomTagManagerActionButtonWidth}"
+                                                        Padding="{DynamicResource CompactButtonPadding}"
+                                                        HorizontalContentAlignment="Center"/>
+                                                <Button Content="{DynamicResource RemoveCustomTagButtonText}"
+                                                        Command="{Binding RemoveCommand}"
+                                                        ToolTip.Tip="{DynamicResource CustomTagManagerRemoveToolTip}"
+                                                        Width="{DynamicResource CustomTagManagerActionButtonWidth}"
+                                                        Padding="{DynamicResource CompactButtonPadding}"
+                                                        HorizontalContentAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <TextBlock Text="{Binding KeyValidationError}"
+                                                   IsVisible="{Binding HasKeyError}"
+                                                   Foreground="{DynamicResource ErrorTextColor}"
+                                                   FontSize="{DynamicResource LabelFontSize}"
+                                                   TextWrapping="Wrap"
+                                                   Margin="{DynamicResource CustomTagManagerErrorMargin}"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- 追加ボタン・エラーサマリー -->
+        <Grid Grid.Row="3"
+              ColumnDefinitions="Auto,*"
+              ColumnSpacing="{DynamicResource DetailItemSpacing}"
+              Margin="{DynamicResource CustomTagManagerAddBarMargin}">
+            <Button Grid.Column="0"
+                    Content="{DynamicResource CustomTagManagerAddButtonText}"
+                    Command="{Binding AddDefinitionCommand}"
+                    Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+            <TextBlock Grid.Column="1"
+                       Text="{Binding ValidationSummaryText}"
+                       IsVisible="{Binding HasValidationError}"
+                       Foreground="{DynamicResource ErrorTextColor}"
+                       FontSize="{DynamicResource LabelFontSize}"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"/>
+        </Grid>
+
+        <!-- OK / Cancel -->
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Spacing="{DynamicResource ToolbarSpacing}"
+                    Margin="{DynamicResource UnsavedDialogButtonsMargin}">
+            <Button Content="{DynamicResource DialogOkButtonText}"
+                    Command="{Binding ConfirmCommand}"
+                    Classes="dialog-primary"
+                    IsDefault="{Binding CanConfirm}"
+                    Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+            <Button Content="{DynamicResource DialogCancelButtonText}"
+                    Command="{Binding CancelCommand}"
+                    IsCancel="True"
+                    Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+        </StackPanel>
+    </Grid>
+</Window>

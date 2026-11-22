@@ -238,20 +238,17 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
     }
 
     /// <summary>
-    /// 現在の列設定から永続化用の <see cref="AppSettings"/> スナップショットを構築する。
+    /// 現在の列設定から永続化用の <see cref="TrackGridSettings"/> スナップショットを構築する。
     /// </summary>
-    public AppSettings BuildSettingsSnapshot()
+    public TrackGridSettings BuildTrackGridSettingsSnapshot()
     {
-        return new AppSettings
+        return new TrackGridSettings
         {
-            TrackGrid = new TrackGridSettings
-            {
-                Columns = Columns
-                    .OrderBy(c => c.DisplayIndex)
-                    .ThenBy(c => c.Definition.DefaultDisplayIndex)
-                    .Select(c => c.ToSettings())
-                    .ToList()
-            }
+            Columns = Columns
+                .OrderBy(c => c.DisplayIndex)
+                .ThenBy(c => c.Definition.DefaultDisplayIndex)
+                .Select(c => c.ToSettings())
+                .ToList()
         };
     }
 
@@ -507,8 +504,10 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
 
             try
             {
-                var snapshot = BuildSettingsSnapshot();
-                await _appSettingsService.SaveAsync(snapshot, CancellationToken.None).ConfigureAwait(false);
+                var trackGridSnapshot = BuildTrackGridSettingsSnapshot();
+                await _appSettingsService
+                    .UpdateAsync(settings => settings.TrackGrid = trackGridSnapshot, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex)
             {

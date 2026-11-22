@@ -9,6 +9,7 @@ namespace FLAC_Tag_Editor.Models;
 public sealed class AppSettings
 {
     public TrackGridSettings TrackGrid { get; set; } = new();
+    public DetailPaneSettings DetailPane { get; set; } = new();
 
     /// <summary>
     /// 既定値で初期化された <see cref="AppSettings"/> を生成する。
@@ -17,7 +18,8 @@ public sealed class AppSettings
     {
         return new AppSettings
         {
-            TrackGrid = TrackGridSettings.CreateDefault()
+            TrackGrid = TrackGridSettings.CreateDefault(),
+            DetailPane = DetailPaneSettings.CreateDefault()
         };
     }
 }
@@ -55,6 +57,37 @@ public sealed class TrackGridColumnSettings
     public bool IsVisible { get; set; } = true;
     public int DisplayIndex { get; set; }
     public double Width { get; set; }
+}
+
+/// <summary>
+/// 右ペイン（詳細パネル）の表示項目設定モデル。
+/// </summary>
+public sealed class DetailPaneSettings
+{
+    public List<DetailPaneFieldSettings> Fields { get; set; } = [];
+
+    public static DetailPaneSettings CreateDefault()
+    {
+        return new DetailPaneSettings
+        {
+            Fields = DetailPaneFieldKindExtensions.AllDefinitions
+                .Select(def => new DetailPaneFieldSettings
+                {
+                    Key = def.Key,
+                    IsVisible = def.DefaultVisible
+                })
+                .ToList()
+        };
+    }
+}
+
+/// <summary>
+/// 右ペイン表示項目 1 件分の永続化設定。
+/// </summary>
+public sealed class DetailPaneFieldSettings
+{
+    public string Key { get; set; } = string.Empty;
+    public bool IsVisible { get; set; } = true;
 }
 
 /// <summary>

@@ -49,6 +49,7 @@ public partial class App : Application
         services.AddSingleton<ITsvPasteService, TsvPasteService>();
         services.AddSingleton<ITextSearchReplaceService, TextSearchReplaceService>();
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
+        services.AddSingleton<ICustomTagDefinitionService, CustomTagDefinitionService>();
 
         // ViewModels
         services.AddSingleton<MainWindowViewModel>();
@@ -59,7 +60,7 @@ public partial class App : Application
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
-        _serviceProvider?.GetService<MainWindowViewModel>()?.ColumnSettings.FlushPendingSaveSync();
+        _serviceProvider?.GetService<MainWindowViewModel>()?.FlushPendingSavesSync();
         _serviceProvider?.Dispose();
         _serviceProvider = null;
     }

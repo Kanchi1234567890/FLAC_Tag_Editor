@@ -20,6 +20,7 @@ public sealed class AppSettingsService : IAppSettingsService, IDisposable
 
     private readonly ISettingsStore<AppSettings> _settingsStore;
     private readonly SemaphoreSlim _ioGate = new(1, 1);
+    private AppSettings? _currentSettings;
     private bool _disposed;
 
     public AppSettingsService()
@@ -62,22 +63,26 @@ public sealed class AppSettingsService : IAppSettingsService, IDisposable
             var result = await _settingsStore.TryLoadAsync(cancellationToken).ConfigureAwait(false);
             if (result.Succeeded && result.Value is not null)
             {
+                _currentSettings = result.Value;
                 return new AppSettingsLoadResult(
                     Settings: result.Value,
                     IsLoadedFromFile: true,
                     HasLoadError: false);
             }
 
+            var defaultSettings = AppSettings.CreateDefault();
+            _currentSettings = defaultSettings;
+
             if (result.Exception is SettingsFileNotFoundException or SettingsNotFoundException or FileNotFoundException)
             {
                 return new AppSettingsLoadResult(
-                    Settings: AppSettings.CreateDefault(),
+                    Settings: defaultSettings,
                     IsLoadedFromFile: false,
                     HasLoadError: false);
             }
 
             return new AppSettingsLoadResult(
-                Settings: AppSettings.CreateDefault(),
+                Settings: defaultSettings,
                 IsLoadedFromFile: false,
                 HasLoadError: true,
                 ErrorMessage: BuildLoadErrorMessage(result.Exception));
@@ -96,7 +101,33 @@ public sealed class AppSettingsService : IAppSettingsService, IDisposable
         await _ioGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            _currentSettings = settings;
             await _settingsStore.SaveAsync(settings, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
+
+    public async Task UpdateAsync(Action<AppSettings> update, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        await _ioGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_currentSettings is null)
+            {
+                var loadResult = await _settingsStore.TryLoadAsync(cancellationToken).ConfigureAwait(false);
+                _currentSettings = loadResult.Succeeded && loadResult.Value is not null
+                    ? loadResult.Value
+                    : AppSettings.CreateDefault();
+            }
+
+            update(_currentSettings);
+            await _settingsStore.SaveAsync(_currentSettings, cancellationToken).ConfigureAwait(false);
         }
         finally
         {

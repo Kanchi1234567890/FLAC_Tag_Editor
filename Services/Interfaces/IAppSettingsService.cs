@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FLAC_Tag_Editor.Models;
@@ -23,4 +24,10 @@ public interface IAppSettingsService
     /// 指定された設定を永続化する。
     /// </summary>
     Task SaveAsync(AppSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 現在の設定スナップショットに対して部分更新を適用し、永続化する。
+    /// 他セクションの設定を上書きせずに特定セクションのみを更新する場合に使用する。
+    /// </summary>
+    Task UpdateAsync(Action<AppSettings> update, CancellationToken cancellationToken = default);
 }

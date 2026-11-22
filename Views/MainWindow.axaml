@@ -852,454 +852,649 @@
             <!-- 右ペイン：選択中トラックの詳細タグ表示・編集 -->
             <Border Grid.Column="2"
                     Background="{DynamicResource DetailPaneBackgroundColor}">
-                <Grid>
-                    <!-- 未選択時プレースホルダー -->
-                    <TextBlock Text="{DynamicResource NoSelectionPlaceholderText}"
-                               IsVisible="{Binding !HasSelectedTrack}"
-                               Foreground="{DynamicResource SecondaryTextColor}"
-                               FontSize="{DynamicResource BodyFontSize}"
-                               TextWrapping="Wrap"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               TextAlignment="Center"
-                               Margin="{DynamicResource DetailPanePadding}"/>
+                <Grid RowDefinitions="Auto,*">
 
-                    <!-- 選択中トラック詳細（上部：バナー専用領域、下部：スクロール可能な詳細編集領域） -->
-                    <Grid IsVisible="{Binding HasSelectedTrack}"
-                          RowDefinitions="Auto,*">
+                    <!-- 右ペイン上部ヘッダーバー（表示項目切替・独自タグ定義管理） -->
+                    <Border Grid.Row="0"
+                            Background="{DynamicResource ToolbarBackgroundColor}"
+                            BorderBrush="{DynamicResource MainWindowBorderColor}"
+                            BorderThickness="{DynamicResource BottomBorderThickness}"
+                            Padding="{DynamicResource DetailPaneHeaderPadding}">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0"
+                                       Text="{DynamicResource DetailPaneHeaderTitleText}"
+                                       Foreground="{DynamicResource SecondaryTextColor}"
+                                       FontSize="{DynamicResource LabelFontSize}"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"/>
 
-                        <!-- 未保存状態バナー専用領域 -->
-                        <Border Grid.Row="0"
-                                DataContext="{Binding SelectedTrack}"
-                                x:DataType="vm:TrackItemViewModel"
-                                Padding="{DynamicResource DetailBannerAreaPadding}"
-                                BorderBrush="{DynamicResource MainWindowBorderColor}"
-                                BorderThickness="{DynamicResource BottomBorderThickness}">
-                            <Border Background="{DynamicResource DirtyBannerBackgroundColor}"
-                                    BorderBrush="{DynamicResource DirtyBannerBorderColor}"
-                                    BorderThickness="{DynamicResource ThinBorderThickness}"
-                                    CornerRadius="{DynamicResource DefaultCornerRadius}"
-                                    Padding="{DynamicResource DirtyBannerPadding}"
-                                    Classes="dirty-banner"
-                                    Classes.visible="{Binding IsDirty}"
-                                    IsHitTestVisible="{Binding IsDirty}">
-                                <TextBlock Text="{DynamicResource UnsavedTrackBannerText}"
-                                           Foreground="{DynamicResource DirtyIndicatorColor}"
-                                           FontSize="{DynamicResource BodyFontSize}"
-                                           FontWeight="SemiBold"/>
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        Spacing="{DynamicResource SmallItemSpacing}">
+                                <Button Content="{DynamicResource DetailFieldsButtonText}"
+                                        ToolTip.Tip="{DynamicResource DetailFieldsButtonToolTip}"
+                                        MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                        Padding="{DynamicResource CompactButtonPadding}"
+                                        FontSize="{DynamicResource LabelFontSize}">
+                                    <Button.Flyout>
+                                        <Flyout Placement="BottomEdgeAlignedRight">
+                                            <ScrollViewer MaxHeight="{DynamicResource DetailFieldChooserFlyoutMaxHeight}"
+                                                          VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled">
+                                                <StackPanel MinWidth="{DynamicResource DetailFieldChooserFlyoutMinWidth}"
+                                                            Margin="{DynamicResource ColumnChooserFlyoutPadding}"
+                                                            Spacing="{DynamicResource ColumnChooserItemSpacing}">
+                                                    <TextBlock Text="{DynamicResource DetailFieldChooserBasicTitleText}"
+                                                               Foreground="{DynamicResource SectionHeaderColor}"
+                                                               FontSize="{DynamicResource LabelFontSize}"
+                                                               FontWeight="SemiBold"
+                                                               Margin="{DynamicResource ColumnChooserHeaderMargin}"/>
+                                                    <ItemsControl ItemsSource="{Binding DetailPane.Fields}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:DetailPaneFieldOptionViewModel">
+                                                                <CheckBox Content="{Binding DisplayName}"
+                                                                          IsChecked="{Binding IsVisible, Mode=TwoWay}"
+                                                                          FontSize="{DynamicResource BodyFontSize}"/>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+
+                                                    <Border Height="{DynamicResource ColumnChooserDividerHeight}"
+                                                            Background="{DynamicResource MainWindowBorderColor}"
+                                                            Margin="{DynamicResource ColumnChooserDividerMargin}"/>
+
+                                                    <TextBlock Text="{DynamicResource DetailFieldChooserCustomTitleText}"
+                                                               Foreground="{DynamicResource SectionHeaderColor}"
+                                                               FontSize="{DynamicResource LabelFontSize}"
+                                                               FontWeight="SemiBold"
+                                                               Margin="{DynamicResource ColumnChooserHeaderMargin}"/>
+                                                    <TextBlock Text="{DynamicResource DetailFieldChooserNoCustomText}"
+                                                               IsVisible="{Binding !CustomTagCatalog.HasDefinitions}"
+                                                               Foreground="{DynamicResource SecondaryTextColor}"
+                                                               FontSize="{DynamicResource LabelFontSize}"/>
+                                                    <ItemsControl ItemsSource="{Binding CustomTagCatalog.Definitions}"
+                                                                  IsVisible="{Binding CustomTagCatalog.HasDefinitions}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:CustomTagDefinitionViewModel">
+                                                                <CheckBox Content="{Binding FlyoutDisplayText}"
+                                                                          IsChecked="{Binding IsVisible, Mode=TwoWay}"
+                                                                          FontSize="{DynamicResource BodyFontSize}"/>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+
+                                                    <Border Height="{DynamicResource ColumnChooserDividerHeight}"
+                                                            Background="{DynamicResource MainWindowBorderColor}"
+                                                            Margin="{DynamicResource ColumnChooserDividerMargin}"/>
+
+                                                    <Button Content="{DynamicResource ManageCustomTagsMenuButtonText}"
+                                                            Command="{Binding OpenCustomTagManagerCommand}"
+                                                            ToolTip.Tip="{DynamicResource ManageCustomTagsToolTip}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Center"
+                                                            MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                            Padding="{DynamicResource CompactButtonPadding}"
+                                                            FontSize="{DynamicResource LabelFontSize}"/>
+                                                    <Button Content="{DynamicResource ResetDetailFieldsButtonText}"
+                                                            Command="{Binding DetailPane.ResetFieldsCommand}"
+                                                            ToolTip.Tip="{DynamicResource ResetDetailFieldsToolTip}"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Center"
+                                                            MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                            Padding="{DynamicResource CompactButtonPadding}"
+                                                            FontSize="{DynamicResource LabelFontSize}"/>
+                                                </StackPanel>
+                                            </ScrollViewer>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                </Button>
+
+                                <Button Content="{DynamicResource ManageCustomTagsMenuButtonText}"
+                                        Command="{Binding OpenCustomTagManagerCommand}"
+                                        ToolTip.Tip="{DynamicResource ManageCustomTagsToolTip}"
+                                        MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                        Padding="{DynamicResource CompactButtonPadding}"
+                                        FontSize="{DynamicResource LabelFontSize}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- 右ペイン本体 -->
+                    <Grid Grid.Row="1">
+                        <!-- 未選択時プレースホルダー -->
+                        <TextBlock Text="{DynamicResource NoSelectionPlaceholderText}"
+                                   IsVisible="{Binding !HasSelectedTrack}"
+                                   Foreground="{DynamicResource SecondaryTextColor}"
+                                   FontSize="{DynamicResource BodyFontSize}"
+                                   TextWrapping="Wrap"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   TextAlignment="Center"
+                                   Margin="{DynamicResource DetailPanePadding}"/>
+
+                        <!-- 選択中トラック詳細（上部：バナー専用領域、下部：スクロール可能な詳細編集領域） -->
+                        <Grid IsVisible="{Binding HasSelectedTrack}"
+                              RowDefinitions="Auto,*">
+
+                            <!-- 未保存状態バナー専用領域 -->
+                            <Border Grid.Row="0"
+                                    DataContext="{Binding SelectedTrack}"
+                                    x:DataType="vm:TrackItemViewModel"
+                                    Padding="{DynamicResource DetailBannerAreaPadding}"
+                                    BorderBrush="{DynamicResource MainWindowBorderColor}"
+                                    BorderThickness="{DynamicResource BottomBorderThickness}">
+                                <Border Background="{DynamicResource DirtyBannerBackgroundColor}"
+                                        BorderBrush="{DynamicResource DirtyBannerBorderColor}"
+                                        BorderThickness="{DynamicResource ThinBorderThickness}"
+                                        CornerRadius="{DynamicResource DefaultCornerRadius}"
+                                        Padding="{DynamicResource DirtyBannerPadding}"
+                                        Classes="dirty-banner"
+                                        Classes.visible="{Binding IsDirty}"
+                                        IsHitTestVisible="{Binding IsDirty}">
+                                    <TextBlock Text="{DynamicResource UnsavedTrackBannerText}"
+                                               Foreground="{DynamicResource DirtyIndicatorColor}"
+                                               FontSize="{DynamicResource BodyFontSize}"
+                                               FontWeight="SemiBold"/>
+                                </Border>
                             </Border>
-                        </Border>
 
-                        <!-- アートワーク・タグ・ファイル情報 -->
-                        <ScrollViewer Grid.Row="1"
-                                      VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Disabled">
-                            <StackPanel Margin="{DynamicResource DetailPanePadding}"
-                                        DataContext="{Binding SelectedTrack}"
-                                        x:DataType="vm:TrackItemViewModel">
+                            <!-- アートワーク・タグ・ファイル情報 -->
+                            <ScrollViewer Grid.Row="1"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="{DynamicResource DetailPanePadding}"
+                                            DataContext="{Binding SelectedTrack}"
+                                            x:DataType="vm:TrackItemViewModel">
 
-                                <!-- アートワーク表示・設定（D&D対応） -->
-                                <StackPanel HorizontalAlignment="Stretch"
-                                            Spacing="{DynamicResource DetailItemSpacing}">
-                                    <Border IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMultipleSelectedTracks}"
-                                            Background="{DynamicResource SelectionBadgeBackgroundColor}"
-                                            BorderBrush="{DynamicResource SelectionBadgeBorderColor}"
-                                            BorderThickness="{DynamicResource ThinBorderThickness}"
-                                            CornerRadius="{DynamicResource DefaultCornerRadius}"
-                                            Padding="{DynamicResource SelectionBadgePadding}"
-                                            HorizontalAlignment="Center">
-                                        <TextBlock Text="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ArtworkTargetSummaryText}"
-                                                   Foreground="{DynamicResource SectionHeaderColor}"
-                                                   FontSize="{DynamicResource LabelFontSize}"
-                                                   FontWeight="SemiBold"
-                                                   TextAlignment="Center"
-                                                   TextWrapping="Wrap"/>
-                                    </Border>
-                                    <Border Width="{DynamicResource ArtworkContainerSize}"
-                                            Height="{DynamicResource ArtworkContainerSize}"
-                                            HorizontalAlignment="Center"
-                                            Background="{DynamicResource CardBackgroundColor}"
-                                            CornerRadius="{DynamicResource DefaultCornerRadius}"
-                                            ClipToBounds="True"
-                                            Classes="artwork-drop-target"
-                                            DragDrop.AllowDrop="True"
-                                            views:ArtworkDropBehavior.DropCommand="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DropArtworkCommand}">
-                                        <Grid>
-                                            <Image Source="{Binding ArtworkBitmap}"
-                                                   Stretch="Uniform"
-                                                   IsVisible="{Binding HasArtwork}"/>
-                                            <TextBlock Text="{DynamicResource NoArtworkPlaceholderText}"
-                                                       IsVisible="{Binding !HasArtwork}"
-                                                       Foreground="{DynamicResource SecondaryTextColor}"
+                                    <!-- アートワーク表示・設定（D&D対応） -->
+                                    <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Artwork.IsVisible}"
+                                                HorizontalAlignment="Stretch"
+                                                Spacing="{DynamicResource DetailItemSpacing}">
+                                        <Border IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMultipleSelectedTracks}"
+                                                Background="{DynamicResource SelectionBadgeBackgroundColor}"
+                                                BorderBrush="{DynamicResource SelectionBadgeBorderColor}"
+                                                BorderThickness="{DynamicResource ThinBorderThickness}"
+                                                CornerRadius="{DynamicResource DefaultCornerRadius}"
+                                                Padding="{DynamicResource SelectionBadgePadding}"
+                                                HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ArtworkTargetSummaryText}"
+                                                       Foreground="{DynamicResource SectionHeaderColor}"
                                                        FontSize="{DynamicResource LabelFontSize}"
-                                                       TextWrapping="Wrap"
+                                                       FontWeight="SemiBold"
                                                        TextAlignment="Center"
-                                                       Padding="{DynamicResource ArtworkHintPadding}"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"/>
-                                            <Border Classes="artwork-drop-overlay"
-                                                    Background="{DynamicResource DropTargetOverlayBackgroundColor}"
-                                                    IsHitTestVisible="False">
-                                                <TextBlock Text="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ArtworkDropOverlayText}"
-                                                           Foreground="{DynamicResource TextColor}"
-                                                           FontSize="{DynamicResource BodyFontSize}"
-                                                           FontWeight="SemiBold"
+                                                       TextWrapping="Wrap"/>
+                                        </Border>
+                                        <Border Width="{DynamicResource ArtworkContainerSize}"
+                                                Height="{DynamicResource ArtworkContainerSize}"
+                                                HorizontalAlignment="Center"
+                                                Background="{DynamicResource CardBackgroundColor}"
+                                                CornerRadius="{DynamicResource DefaultCornerRadius}"
+                                                ClipToBounds="True"
+                                                Classes="artwork-drop-target"
+                                                DragDrop.AllowDrop="True"
+                                                views:ArtworkDropBehavior.DropCommand="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DropArtworkCommand}">
+                                            <Grid>
+                                                <Image Source="{Binding ArtworkBitmap}"
+                                                       Stretch="Uniform"
+                                                       IsVisible="{Binding HasArtwork}"/>
+                                                <TextBlock Text="{DynamicResource NoArtworkPlaceholderText}"
+                                                           IsVisible="{Binding !HasArtwork}"
+                                                           Foreground="{DynamicResource SecondaryTextColor}"
+                                                           FontSize="{DynamicResource LabelFontSize}"
                                                            TextWrapping="Wrap"
                                                            TextAlignment="Center"
                                                            Padding="{DynamicResource ArtworkHintPadding}"
                                                            HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"/>
-                                            </Border>
-                                        </Grid>
-                                    </Border>
+                                                <Border Classes="artwork-drop-overlay"
+                                                        Background="{DynamicResource DropTargetOverlayBackgroundColor}"
+                                                        IsHitTestVisible="False">
+                                                    <TextBlock Text="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ArtworkDropOverlayText}"
+                                                               Foreground="{DynamicResource TextColor}"
+                                                               FontSize="{DynamicResource BodyFontSize}"
+                                                               FontWeight="SemiBold"
+                                                               TextWrapping="Wrap"
+                                                               TextAlignment="Center"
+                                                               Padding="{DynamicResource ArtworkHintPadding}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
 
-                                    <!-- 複数アートワーク切替・並び順操作バー -->
-                                    <Grid IsVisible="{Binding HasArtworkData}"
-                                          ColumnDefinitions="Auto,*,Auto">
-                                        <StackPanel Grid.Column="0"
-                                                    Orientation="Horizontal"
-                                                    Spacing="{DynamicResource SmallItemSpacing}"
-                                                    VerticalAlignment="Center">
-                                            <Button Content="{DynamicResource ArtworkPrevButtonText}"
-                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SelectPreviousArtworkCommand}"
-                                                    ToolTip.Tip="{DynamicResource ArtworkPrevToolTip}"
-                                                    Width="{DynamicResource ArtworkNavButtonWidth}"
-                                                    MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
-                                                    Padding="{DynamicResource ArtworkNavButtonPadding}"
-                                                    FontSize="{DynamicResource LabelFontSize}"
-                                                    HorizontalContentAlignment="Center"/>
-                                            <TextBlock Text="{Binding SelectedArtworkPositionText}"
-                                                       Foreground="{DynamicResource TextColor}"
-                                                       FontSize="{DynamicResource LabelFontSize}"
-                                                       FontWeight="SemiBold"
-                                                       VerticalAlignment="Center"/>
-                                            <Button Content="{DynamicResource ArtworkNextButtonText}"
-                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SelectNextArtworkCommand}"
-                                                    ToolTip.Tip="{DynamicResource ArtworkNextToolTip}"
-                                                    Width="{DynamicResource ArtworkNavButtonWidth}"
-                                                    MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
-                                                    Padding="{DynamicResource ArtworkNavButtonPadding}"
-                                                    FontSize="{DynamicResource LabelFontSize}"
-                                                    HorizontalContentAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2"
-                                                    Orientation="Horizontal"
-                                                    Spacing="{DynamicResource SmallItemSpacing}"
-                                                    VerticalAlignment="Center">
-                                            <TextBlock Text="{DynamicResource ArtworkOrderLabelText}"
+                                        <!-- 複数アートワーク切替・並び順操作バー -->
+                                        <Grid IsVisible="{Binding HasArtworkData}"
+                                              ColumnDefinitions="Auto,*,Auto">
+                                            <StackPanel Grid.Column="0"
+                                                        Orientation="Horizontal"
+                                                        Spacing="{DynamicResource SmallItemSpacing}"
+                                                        VerticalAlignment="Center">
+                                                <Button Content="{DynamicResource ArtworkPrevButtonText}"
+                                                        Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SelectPreviousArtworkCommand}"
+                                                        ToolTip.Tip="{DynamicResource ArtworkPrevToolTip}"
+                                                        Width="{DynamicResource ArtworkNavButtonWidth}"
+                                                        MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
+                                                        Padding="{DynamicResource ArtworkNavButtonPadding}"
+                                                        FontSize="{DynamicResource LabelFontSize}"
+                                                        HorizontalContentAlignment="Center"/>
+                                                <TextBlock Text="{Binding SelectedArtworkPositionText}"
+                                                           Foreground="{DynamicResource TextColor}"
+                                                           FontSize="{DynamicResource LabelFontSize}"
+                                                           FontWeight="SemiBold"
+                                                           VerticalAlignment="Center"/>
+                                                <Button Content="{DynamicResource ArtworkNextButtonText}"
+                                                        Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SelectNextArtworkCommand}"
+                                                        ToolTip.Tip="{DynamicResource ArtworkNextToolTip}"
+                                                        Width="{DynamicResource ArtworkNavButtonWidth}"
+                                                        MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
+                                                        Padding="{DynamicResource ArtworkNavButtonPadding}"
+                                                        FontSize="{DynamicResource LabelFontSize}"
+                                                        HorizontalContentAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2"
+                                                        Orientation="Horizontal"
+                                                        Spacing="{DynamicResource SmallItemSpacing}"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="{DynamicResource ArtworkOrderLabelText}"
+                                                           Foreground="{DynamicResource SecondaryTextColor}"
+                                                           FontSize="{DynamicResource LabelFontSize}"
+                                                           VerticalAlignment="Center"/>
+                                                <Button Content="{DynamicResource ArtworkMoveLeftButtonText}"
+                                                        Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).MoveArtworkLeftCommand}"
+                                                        ToolTip.Tip="{DynamicResource ArtworkMoveLeftToolTip}"
+                                                        Width="{DynamicResource ArtworkNavButtonWidth}"
+                                                        MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
+                                                        Padding="{DynamicResource ArtworkNavButtonPadding}"
+                                                        FontSize="{DynamicResource LabelFontSize}"
+                                                        HorizontalContentAlignment="Center"/>
+                                                <Button Content="{DynamicResource ArtworkMoveRightButtonText}"
+                                                        Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).MoveArtworkRightCommand}"
+                                                        ToolTip.Tip="{DynamicResource ArtworkMoveRightToolTip}"
+                                                        Width="{DynamicResource ArtworkNavButtonWidth}"
+                                                        MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
+                                                        Padding="{DynamicResource ArtworkNavButtonPadding}"
+                                                        FontSize="{DynamicResource LabelFontSize}"
+                                                        HorizontalContentAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- サムネイル一覧（横スクロール） -->
+                                        <ListBox IsVisible="{Binding HasArtworkData}"
+                                                 Classes="artwork-thumbnails"
+                                                 Height="{DynamicResource ArtworkThumbListHeight}"
+                                                 ItemsSource="{Binding Artworks}"
+                                                 SelectedItem="{Binding SelectedArtwork, Mode=TwoWay}"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                                 ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                                            <ListBox.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ListBox.ItemsPanel>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:ArtworkItemViewModel">
+                                                    <StackPanel Width="{DynamicResource ArtworkThumbItemWidth}"
+                                                                Spacing="{DynamicResource ArtworkThumbContentSpacing}"
+                                                                HorizontalAlignment="Center"
+                                                                ToolTip.Tip="{Binding ThumbnailToolTipText}">
+                                                        <Border Width="{DynamicResource ArtworkThumbImageSize}"
+                                                                Height="{DynamicResource ArtworkThumbImageSize}"
+                                                                Background="{DynamicResource ReadOnlyFieldBackgroundColor}"
+                                                                CornerRadius="{DynamicResource DefaultCornerRadius}"
+                                                                ClipToBounds="True"
+                                                                HorizontalAlignment="Center">
+                                                            <Image Source="{Binding PreviewBitmap}"
+                                                                   Stretch="Uniform"/>
+                                                        </Border>
+                                                        <TextBlock Text="{Binding ThumbnailLabel}"
+                                                                   Foreground="{DynamicResource SecondaryTextColor}"
+                                                                   FontSize="{DynamicResource SmallLabelFontSize}"
+                                                                   HorizontalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+
+                                        <TextBlock Text="{Binding ArtworkInfoDisplay}"
+                                                   Foreground="{DynamicResource SecondaryTextColor}"
+                                                   FontSize="{DynamicResource LabelFontSize}"
+                                                   HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).MixedArtworkNoticeText}"
+                                                   IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMixedArtworkInSelection}"
+                                                   Foreground="{DynamicResource PreviewWarningTextColor}"
+                                                   FontSize="{DynamicResource LabelFontSize}"
+                                                   TextWrapping="Wrap"
+                                                   TextAlignment="Center"
+                                                   HorizontalAlignment="Center"/>
+
+                                        <!-- アートワーク操作ボタン群 -->
+                                        <WrapPanel Orientation="Horizontal"
+                                                   HorizontalAlignment="Center"
+                                                   ItemSpacing="{DynamicResource SmallItemSpacing}"
+                                                   LineSpacing="{DynamicResource SmallItemSpacing}">
+                                            <Button Content="{DynamicResource AddArtworkButtonText}"
+                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).AddArtworkCommand}"
+                                                    ToolTip.Tip="{DynamicResource AddArtworkToolTip}"
+                                                    Padding="{DynamicResource ArtworkActionButtonPadding}"
+                                                    MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                    FontSize="{DynamicResource LabelFontSize}"/>
+                                            <Button Content="{DynamicResource ReplaceArtworkButtonText}"
+                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ReplaceArtworkCommand}"
+                                                    ToolTip.Tip="{DynamicResource ReplaceArtworkToolTip}"
+                                                    Padding="{DynamicResource ArtworkActionButtonPadding}"
+                                                    MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                    FontSize="{DynamicResource LabelFontSize}"/>
+                                            <Button Content="{DynamicResource RemoveSelectedArtworkButtonText}"
+                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).RemoveSelectedArtworkCommand}"
+                                                    ToolTip.Tip="{DynamicResource RemoveSelectedArtworkToolTip}"
+                                                    Padding="{DynamicResource ArtworkActionButtonPadding}"
+                                                    MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                    FontSize="{DynamicResource LabelFontSize}"/>
+                                            <Button Content="{DynamicResource ClearAllArtworksButtonText}"
+                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ClearAllArtworksCommand}"
+                                                    ToolTip.Tip="{DynamicResource ClearAllArtworksToolTip}"
+                                                    Padding="{DynamicResource ArtworkActionButtonPadding}"
+                                                    MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                    FontSize="{DynamicResource LabelFontSize}"/>
+                                        </WrapPanel>
+
+                                        <!-- 複数選択時：現在の構成を選択中すべてへ同期 -->
+                                        <Button Content="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SyncArtworksButtonText}"
+                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SyncArtworksToSelectionCommand}"
+                                                ToolTip.Tip="{DynamicResource SyncArtworksToolTip}"
+                                                IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMultipleSelectedTracks}"
+                                                Classes="sync-artwork-button"
+                                                HorizontalAlignment="Center"/>
+
+                                        <!-- 選択中アートワークの種別・説明編集 -->
+                                        <StackPanel IsVisible="{Binding HasSelectedArtwork}"
+                                                    Margin="{DynamicResource ArtworkMetadataMargin}"
+                                                    Spacing="{DynamicResource SmallItemSpacing}">
+                                            <StackPanel DataContext="{Binding SelectedArtwork}"
+                                                        x:DataType="vm:ArtworkItemViewModel"
+                                                        IsEnabled="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).CanEditSingleTrackArtworkDetails}">
+                                                <TextBlock Text="{DynamicResource ArtworkTypeLabelText}" Classes="field-label"/>
+                                                <ComboBox ItemsSource="{Binding PictureTypeOptions}"
+                                                          SelectedItem="{Binding SelectedPictureTypeOption, Mode=TwoWay}"
+                                                          HorizontalAlignment="Stretch"
+                                                          FontSize="{DynamicResource BodyFontSize}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="models:ArtworkPictureTypeOption">
+                                                            <TextBlock Text="{Binding DisplayName}"/>
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+
+                                                <TextBlock Text="{DynamicResource ArtworkDescriptionLabelText}" Classes="field-label"/>
+                                                <TextBox Text="{Binding Description, Mode=TwoWay}"
+                                                         PlaceholderText="{DynamicResource ArtworkDescriptionPlaceholder}"
+                                                         Classes="editable-field"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{DynamicResource ArtworkMultiSelectReadOnlyHintText}"
+                                                       IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMultipleSelectedTracks}"
                                                        Foreground="{DynamicResource SecondaryTextColor}"
-                                                       FontSize="{DynamicResource LabelFontSize}"
-                                                       VerticalAlignment="Center"/>
-                                            <Button Content="{DynamicResource ArtworkMoveLeftButtonText}"
-                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).MoveArtworkLeftCommand}"
-                                                    ToolTip.Tip="{DynamicResource ArtworkMoveLeftToolTip}"
-                                                    Width="{DynamicResource ArtworkNavButtonWidth}"
-                                                    MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
-                                                    Padding="{DynamicResource ArtworkNavButtonPadding}"
-                                                    FontSize="{DynamicResource LabelFontSize}"
-                                                    HorizontalContentAlignment="Center"/>
-                                            <Button Content="{DynamicResource ArtworkMoveRightButtonText}"
-                                                    Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).MoveArtworkRightCommand}"
-                                                    ToolTip.Tip="{DynamicResource ArtworkMoveRightToolTip}"
-                                                    Width="{DynamicResource ArtworkNavButtonWidth}"
-                                                    MinHeight="{DynamicResource ArtworkNavButtonMinHeight}"
-                                                    Padding="{DynamicResource ArtworkNavButtonPadding}"
-                                                    FontSize="{DynamicResource LabelFontSize}"
-                                                    HorizontalContentAlignment="Center"/>
+                                                       FontSize="{DynamicResource SmallLabelFontSize}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- 基本タグ -->
+                                    <TextBlock Text="基本タグ"
+                                               Classes="section-header"
+                                               IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.HasVisibleBasicTags}"/>
+
+                                    <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Title.IsVisible}">
+                                        <TextBlock Text="タイトル" Classes="field-label"/>
+                                        <TextBox Text="{Binding Title, Mode=TwoWay}" Classes="editable-field"/>
+                                    </StackPanel>
+
+                                    <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Artist.IsVisible}">
+                                        <TextBlock Text="アーティスト" Classes="field-label"/>
+                                        <TextBox Text="{Binding Artist, Mode=TwoWay}" Classes="editable-field"/>
+                                    </StackPanel>
+
+                                    <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Album.IsVisible}">
+                                        <TextBlock Text="アルバム" Classes="field-label"/>
+                                        <TextBox Text="{Binding Album, Mode=TwoWay}" Classes="editable-field"/>
+                                    </StackPanel>
+
+                                    <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.AlbumArtist.IsVisible}">
+                                        <TextBlock Text="アルバムアーティスト" Classes="field-label"/>
+                                        <TextBox Text="{Binding AlbumArtist, Mode=TwoWay}" Classes="editable-field"/>
+                                    </StackPanel>
+
+                                    <Grid ColumnDefinitions="*,*"
+                                          ColumnSpacing="{DynamicResource DetailItemSpacing}"
+                                          IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.IsTrackOrDiscVisible}">
+                                        <StackPanel Grid.Column="0"
+                                                    IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Track.IsVisible}">
+                                            <TextBlock Text="トラック (番号 / 総数)" Classes="field-label"/>
+                                            <Grid ColumnDefinitions="*,Auto,*">
+                                                <TextBox Grid.Column="0"
+                                                         Text="{Binding TrackNumberText, Mode=TwoWay}"
+                                                         PlaceholderText="{DynamicResource CounterNumberPlaceholder}"
+                                                         Classes="editable-field"/>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{DynamicResource CounterSeparatorText}"
+                                                           Foreground="{DynamicResource SecondaryTextColor}"
+                                                           Margin="{DynamicResource CounterSeparatorMargin}"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="2"
+                                                         Text="{Binding TrackCountText, Mode=TwoWay}"
+                                                         PlaceholderText="{DynamicResource CounterTotalPlaceholder}"
+                                                         Classes="editable-field"/>
+                                            </Grid>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1"
+                                                    IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Disc.IsVisible}">
+                                            <TextBlock Text="ディスク (番号 / 総数)" Classes="field-label"/>
+                                            <Grid ColumnDefinitions="*,Auto,*">
+                                                <TextBox Grid.Column="0"
+                                                         Text="{Binding DiscNumberText, Mode=TwoWay}"
+                                                         PlaceholderText="{DynamicResource CounterNumberPlaceholder}"
+                                                         Classes="editable-field"/>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{DynamicResource CounterSeparatorText}"
+                                                           Foreground="{DynamicResource SecondaryTextColor}"
+                                                           Margin="{DynamicResource CounterSeparatorMargin}"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBox Grid.Column="2"
+                                                         Text="{Binding DiscCountText, Mode=TwoWay}"
+                                                         PlaceholderText="{DynamicResource CounterTotalPlaceholder}"
+                                                         Classes="editable-field"/>
+                                            </Grid>
                                         </StackPanel>
                                     </Grid>
 
-                                    <!-- サムネイル一覧（横スクロール） -->
-                                    <ListBox IsVisible="{Binding HasArtworkData}"
-                                             Classes="artwork-thumbnails"
-                                             Height="{DynamicResource ArtworkThumbListHeight}"
-                                             ItemsSource="{Binding Artworks}"
-                                             SelectedItem="{Binding SelectedArtwork, Mode=TwoWay}"
-                                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                             ScrollViewer.VerticalScrollBarVisibility="Disabled">
-                                        <ListBox.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal"/>
-                                            </ItemsPanelTemplate>
-                                        </ListBox.ItemsPanel>
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:ArtworkItemViewModel">
-                                                <StackPanel Width="{DynamicResource ArtworkThumbItemWidth}"
-                                                            Spacing="{DynamicResource ArtworkThumbContentSpacing}"
-                                                            HorizontalAlignment="Center"
-                                                            ToolTip.Tip="{Binding ThumbnailToolTipText}">
-                                                    <Border Width="{DynamicResource ArtworkThumbImageSize}"
-                                                            Height="{DynamicResource ArtworkThumbImageSize}"
-                                                            Background="{DynamicResource ReadOnlyFieldBackgroundColor}"
-                                                            CornerRadius="{DynamicResource DefaultCornerRadius}"
-                                                            ClipToBounds="True"
-                                                            HorizontalAlignment="Center">
-                                                        <Image Source="{Binding PreviewBitmap}"
-                                                               Stretch="Uniform"/>
-                                                    </Border>
-                                                    <TextBlock Text="{Binding ThumbnailLabel}"
-                                                               Foreground="{DynamicResource SecondaryTextColor}"
-                                                               FontSize="{DynamicResource SmallLabelFontSize}"
-                                                               HorizontalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-
-                                    <TextBlock Text="{Binding ArtworkInfoDisplay}"
-                                               Foreground="{DynamicResource SecondaryTextColor}"
-                                               FontSize="{DynamicResource LabelFontSize}"
-                                               HorizontalAlignment="Center"/>
-                                    <TextBlock Text="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).MixedArtworkNoticeText}"
-                                               IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMixedArtworkInSelection}"
-                                               Foreground="{DynamicResource PreviewWarningTextColor}"
-                                               FontSize="{DynamicResource LabelFontSize}"
-                                               TextWrapping="Wrap"
-                                               TextAlignment="Center"
-                                               HorizontalAlignment="Center"/>
-
-                                    <!-- アートワーク操作ボタン群 -->
-                                    <WrapPanel Orientation="Horizontal"
-                                               HorizontalAlignment="Center"
-                                               ItemSpacing="{DynamicResource SmallItemSpacing}"
-                                               LineSpacing="{DynamicResource SmallItemSpacing}">
-                                        <Button Content="{DynamicResource AddArtworkButtonText}"
-                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).AddArtworkCommand}"
-                                                ToolTip.Tip="{DynamicResource AddArtworkToolTip}"
-                                                Padding="{DynamicResource ArtworkActionButtonPadding}"
-                                                MinHeight="{DynamicResource CompactButtonMinHeight}"
-                                                FontSize="{DynamicResource LabelFontSize}"/>
-                                        <Button Content="{DynamicResource ReplaceArtworkButtonText}"
-                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ReplaceArtworkCommand}"
-                                                ToolTip.Tip="{DynamicResource ReplaceArtworkToolTip}"
-                                                Padding="{DynamicResource ArtworkActionButtonPadding}"
-                                                MinHeight="{DynamicResource CompactButtonMinHeight}"
-                                                FontSize="{DynamicResource LabelFontSize}"/>
-                                        <Button Content="{DynamicResource RemoveSelectedArtworkButtonText}"
-                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).RemoveSelectedArtworkCommand}"
-                                                ToolTip.Tip="{DynamicResource RemoveSelectedArtworkToolTip}"
-                                                Padding="{DynamicResource ArtworkActionButtonPadding}"
-                                                MinHeight="{DynamicResource CompactButtonMinHeight}"
-                                                FontSize="{DynamicResource LabelFontSize}"/>
-                                        <Button Content="{DynamicResource ClearAllArtworksButtonText}"
-                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ClearAllArtworksCommand}"
-                                                ToolTip.Tip="{DynamicResource ClearAllArtworksToolTip}"
-                                                Padding="{DynamicResource ArtworkActionButtonPadding}"
-                                                MinHeight="{DynamicResource CompactButtonMinHeight}"
-                                                FontSize="{DynamicResource LabelFontSize}"/>
-                                    </WrapPanel>
-
-                                    <!-- 複数選択時：現在の構成を選択中すべてへ同期 -->
-                                    <Button Content="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SyncArtworksButtonText}"
-                                            Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).SyncArtworksToSelectionCommand}"
-                                            ToolTip.Tip="{DynamicResource SyncArtworksToolTip}"
-                                            IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMultipleSelectedTracks}"
-                                            Classes="sync-artwork-button"
-                                            HorizontalAlignment="Center"/>
-
-                                    <!-- 選択中アートワークの種別・説明編集 -->
-                                    <StackPanel IsVisible="{Binding HasSelectedArtwork}"
-                                                Margin="{DynamicResource ArtworkMetadataMargin}"
-                                                Spacing="{DynamicResource SmallItemSpacing}">
-                                        <StackPanel DataContext="{Binding SelectedArtwork}"
-                                                    x:DataType="vm:ArtworkItemViewModel"
-                                                    IsEnabled="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).CanEditSingleTrackArtworkDetails}">
-                                            <TextBlock Text="{DynamicResource ArtworkTypeLabelText}" Classes="field-label"/>
-                                            <ComboBox ItemsSource="{Binding PictureTypeOptions}"
-                                                      SelectedItem="{Binding SelectedPictureTypeOption, Mode=TwoWay}"
-                                                      HorizontalAlignment="Stretch"
-                                                      FontSize="{DynamicResource BodyFontSize}">
-                                                <ComboBox.ItemTemplate>
-                                                    <DataTemplate x:DataType="models:ArtworkPictureTypeOption">
-                                                        <TextBlock Text="{Binding DisplayName}"/>
-                                                    </DataTemplate>
-                                                </ComboBox.ItemTemplate>
-                                            </ComboBox>
-
-                                            <TextBlock Text="{DynamicResource ArtworkDescriptionLabelText}" Classes="field-label"/>
-                                            <TextBox Text="{Binding Description, Mode=TwoWay}"
-                                                     PlaceholderText="{DynamicResource ArtworkDescriptionPlaceholder}"
+                                    <Grid ColumnDefinitions="*,2*"
+                                          ColumnSpacing="{DynamicResource DetailItemSpacing}"
+                                          IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.IsYearOrGenreVisible}">
+                                        <StackPanel Grid.Column="0"
+                                                    IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Year.IsVisible}">
+                                            <TextBlock Text="年" Classes="field-label"/>
+                                            <TextBox Text="{Binding YearText, Mode=TwoWay}"
+                                                     PlaceholderText="{DynamicResource YearPlaceholder}"
                                                      Classes="editable-field"/>
                                         </StackPanel>
-                                        <TextBlock Text="{DynamicResource ArtworkMultiSelectReadOnlyHintText}"
-                                                   IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMultipleSelectedTracks}"
-                                                   Foreground="{DynamicResource SecondaryTextColor}"
-                                                   FontSize="{DynamicResource SmallLabelFontSize}"
-                                                   TextWrapping="Wrap"/>
+                                        <StackPanel Grid.Column="1"
+                                                    IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Genre.IsVisible}">
+                                            <TextBlock Text="ジャンル" Classes="field-label"/>
+                                            <TextBox Text="{Binding Genre, Mode=TwoWay}" Classes="editable-field"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Comment.IsVisible}">
+                                        <TextBlock Text="コメント" Classes="field-label"/>
+                                        <TextBox Text="{Binding Comment, Mode=TwoWay}"
+                                                 Classes="editable-field"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="Wrap"
+                                                 MinHeight="{DynamicResource CommentFieldMinHeight}"/>
                                     </StackPanel>
-                                </StackPanel>
 
-                                <!-- 基本タグ -->
-                                <TextBlock Text="基本タグ" Classes="section-header"/>
+                                    <!-- 独自タグ (Vorbis Comment) -->
+                                    <Grid ColumnDefinitions="*,Auto" Margin="{DynamicResource SectionMargin}">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="独自タグ (Vorbis Comment)"
+                                                   Foreground="{DynamicResource SectionHeaderColor}"
+                                                   FontSize="{DynamicResource SectionHeaderFontSize}"
+                                                   FontWeight="SemiBold"
+                                                   VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1"
+                                                Content="{DynamicResource ManageCustomTagsButtonText}"
+                                                Command="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).OpenCustomTagManagerCommand}"
+                                                ToolTip.Tip="{DynamicResource ManageCustomTagsToolTip}"
+                                                Padding="{DynamicResource CompactButtonPadding}"
+                                                MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                FontSize="{DynamicResource LabelFontSize}"/>
+                                    </Grid>
 
-                                <TextBlock Text="タイトル" Classes="field-label"/>
-                                <TextBox Text="{Binding Title, Mode=TwoWay}" Classes="editable-field"/>
+                                    <TextBlock Text="{DynamicResource NoVisibleDefinedCustomTagsPlaceholderText}"
+                                               IsVisible="{Binding !#RootWindow.((vm:MainWindowViewModel)DataContext).CustomTagCatalog.HasVisibleDefinitions}"
+                                               Foreground="{DynamicResource SecondaryTextColor}"
+                                               FontSize="{DynamicResource LabelFontSize}"
+                                               TextWrapping="Wrap"/>
 
-                                <TextBlock Text="アーティスト" Classes="field-label"/>
-                                <TextBox Text="{Binding Artist, Mode=TwoWay}" Classes="editable-field"/>
-
-                                <TextBlock Text="アルバム" Classes="field-label"/>
-                                <TextBox Text="{Binding Album, Mode=TwoWay}" Classes="editable-field"/>
-
-                                <TextBlock Text="アルバムアーティスト" Classes="field-label"/>
-                                <TextBox Text="{Binding AlbumArtist, Mode=TwoWay}" Classes="editable-field"/>
-
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="{DynamicResource DetailItemSpacing}">
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="トラック (番号 / 総数)" Classes="field-label"/>
-                                        <Grid ColumnDefinitions="*,Auto,*">
-                                            <TextBox Grid.Column="0"
-                                                     Text="{Binding TrackNumberText, Mode=TwoWay}"
-                                                     PlaceholderText="{DynamicResource CounterNumberPlaceholder}"
-                                                     Classes="editable-field"/>
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{DynamicResource CounterSeparatorText}"
-                                                       Foreground="{DynamicResource SecondaryTextColor}"
-                                                       Margin="{DynamicResource CounterSeparatorMargin}"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBox Grid.Column="2"
-                                                     Text="{Binding TrackCountText, Mode=TwoWay}"
-                                                     PlaceholderText="{DynamicResource CounterTotalPlaceholder}"
-                                                     Classes="editable-field"/>
-                                        </Grid>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="ディスク (番号 / 総数)" Classes="field-label"/>
-                                        <Grid ColumnDefinitions="*,Auto,*">
-                                            <TextBox Grid.Column="0"
-                                                     Text="{Binding DiscNumberText, Mode=TwoWay}"
-                                                     PlaceholderText="{DynamicResource CounterNumberPlaceholder}"
-                                                     Classes="editable-field"/>
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{DynamicResource CounterSeparatorText}"
-                                                       Foreground="{DynamicResource SecondaryTextColor}"
-                                                       Margin="{DynamicResource CounterSeparatorMargin}"
-                                                       VerticalAlignment="Center"/>
-                                            <TextBox Grid.Column="2"
-                                                     Text="{Binding DiscCountText, Mode=TwoWay}"
-                                                     PlaceholderText="{DynamicResource CounterTotalPlaceholder}"
-                                                     Classes="editable-field"/>
-                                        </Grid>
-                                    </StackPanel>
-                                </Grid>
-
-                                <Grid ColumnDefinitions="*,2*" ColumnSpacing="{DynamicResource DetailItemSpacing}">
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="年" Classes="field-label"/>
-                                        <TextBox Text="{Binding YearText, Mode=TwoWay}"
-                                                 PlaceholderText="{DynamicResource YearPlaceholder}"
-                                                 Classes="editable-field"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="ジャンル" Classes="field-label"/>
-                                        <TextBox Text="{Binding Genre, Mode=TwoWay}" Classes="editable-field"/>
-                                    </StackPanel>
-                                </Grid>
-
-                                <TextBlock Text="コメント" Classes="field-label"/>
-                                <TextBox Text="{Binding Comment, Mode=TwoWay}"
-                                         Classes="editable-field"
-                                         AcceptsReturn="True"
-                                         TextWrapping="Wrap"
-                                         MinHeight="{DynamicResource CommentFieldMinHeight}"/>
-
-                                <!-- 独自タグ (Vorbis Comment) -->
-                                <Grid ColumnDefinitions="*,Auto" Margin="{DynamicResource SectionMargin}">
-                                    <TextBlock Grid.Column="0"
-                                               Text="独自タグ (Vorbis Comment)"
-                                               Foreground="{DynamicResource SectionHeaderColor}"
-                                               FontSize="{DynamicResource SectionHeaderFontSize}"
-                                               FontWeight="SemiBold"
-                                               VerticalAlignment="Center"/>
-                                    <Button Grid.Column="1"
-                                            Content="{DynamicResource AddCustomTagButtonText}"
-                                            Command="{Binding AddCustomTagCommand}"
-                                            Padding="{DynamicResource CompactButtonPadding}"
-                                            MinHeight="{DynamicResource CompactButtonMinHeight}"
-                                            FontSize="{DynamicResource LabelFontSize}"/>
-                                </Grid>
-
-                                <TextBlock Text="{DynamicResource NoCustomTagsPlaceholderText}"
-                                           IsVisible="{Binding !HasCustomTags}"
-                                           Foreground="{DynamicResource SecondaryTextColor}"
-                                           FontSize="{DynamicResource LabelFontSize}"
-                                           TextWrapping="Wrap"/>
-
-                                <ItemsControl ItemsSource="{Binding CustomTags}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:CustomTagItemViewModel">
-                                            <Border Background="{DynamicResource CardBackgroundColor}"
-                                                    BorderBrush="{DynamicResource MainWindowBorderColor}"
-                                                    BorderThickness="{DynamicResource ThinBorderThickness}"
-                                                    CornerRadius="{DynamicResource DefaultCornerRadius}"
-                                                    Padding="{DynamicResource CustomTagCardPadding}"
-                                                    Margin="{DynamicResource CustomTagCardMargin}">
-                                                <StackPanel Spacing="{DynamicResource SmallItemSpacing}">
+                                    <!-- 定義済み独自タグ一覧（全トラック共通の入力欄） -->
+                                    <ItemsControl ItemsSource="{Binding DefinedCustomTags}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:CustomTagFieldViewModel">
+                                                <StackPanel IsVisible="{Binding Definition.IsVisible}">
                                                     <Grid ColumnDefinitions="*,Auto"
-                                                          ColumnSpacing="{DynamicResource SmallItemSpacing}">
-                                                        <TextBox Grid.Column="0"
-                                                                 Text="{Binding Key, Mode=TwoWay}"
-                                                                 PlaceholderText="{DynamicResource CustomTagKeyPlaceholder}"
-                                                                 Classes="editable-field"
-                                                                 Classes.error="{Binding HasKeyError}"
-                                                                 views:FocusBehavior.IsFocusRequested="{Binding IsFocusRequested, Mode=TwoWay}"/>
-                                                        <Button Grid.Column="1"
-                                                                Content="{DynamicResource RemoveCustomTagButtonText}"
-                                                                Command="{Binding RemoveCommand}"
-                                                                ToolTip.Tip="{DynamicResource RemoveCustomTagToolTip}"
-                                                                Width="{DynamicResource RemoveTagButtonWidth}"
-                                                                Padding="{DynamicResource CompactButtonPadding}"
-                                                                HorizontalContentAlignment="Center"/>
+                                                          Margin="{DynamicResource FieldLabelMargin}">
+                                                        <StackPanel Grid.Column="0"
+                                                                    Orientation="Horizontal"
+                                                                    Spacing="{DynamicResource SmallItemSpacing}">
+                                                            <TextBlock Text="{Binding Definition.DisplayLabel}"
+                                                                       Foreground="{DynamicResource SecondaryTextColor}"
+                                                                       FontSize="{DynamicResource LabelFontSize}"
+                                                                       VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding Definition.Key, StringFormat='({0})'}"
+                                                                       IsVisible="{Binding Definition.HasCustomLabel}"
+                                                                       Foreground="{DynamicResource SecondaryTextColor}"
+                                                                       FontSize="{DynamicResource SmallLabelFontSize}"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{DynamicResource CustomTagMultiValueBadgeText}"
+                                                                   IsVisible="{Binding HasPreservedMultipleValues}"
+                                                                   Foreground="{DynamicResource PreviewWarningTextColor}"
+                                                                   FontSize="{DynamicResource SmallLabelFontSize}"
+                                                                   VerticalAlignment="Center"/>
                                                     </Grid>
-                                                    <TextBlock Text="{Binding KeyValidationError}"
-                                                               IsVisible="{Binding HasKeyError}"
-                                                               Foreground="{DynamicResource ErrorTextColor}"
-                                                               FontSize="{DynamicResource LabelFontSize}"
-                                                               TextWrapping="Wrap"/>
                                                     <TextBox Text="{Binding Value, Mode=TwoWay}"
                                                              PlaceholderText="{DynamicResource CustomTagValuePlaceholder}"
                                                              Classes="editable-field"
                                                              TextWrapping="Wrap"/>
                                                 </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
 
-                                <!-- ファイル・音声情報 -->
-                                <TextBlock Text="ファイル・音声情報" Classes="section-header"/>
+                                    <!-- 未登録の独自タグ一覧（このトラックのみ存在する未定義キー） -->
+                                    <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.UnregisteredCustomTags.IsVisible}">
+                                        <StackPanel IsVisible="{Binding HasUnregisteredCustomTags}">
+                                            <TextBlock Text="{DynamicResource UnregisteredCustomTagsHeaderText}"
+                                                       Foreground="{DynamicResource SecondaryTextColor}"
+                                                       FontSize="{DynamicResource LabelFontSize}"
+                                                       FontWeight="SemiBold"
+                                                       Margin="{DynamicResource SubSectionMargin}"/>
 
-                                <TextBlock Text="ファイル名" Classes="field-label"/>
-                                <TextBox Text="{Binding FileName, Mode=OneWay}"
-                                         Classes="readonly-field"
-                                         Classes.error="{Binding HasFileNameError}"/>
-                                <TextBlock Text="{Binding FileNameValidationError}"
-                                           IsVisible="{Binding HasFileNameError}"
-                                           Foreground="{DynamicResource ErrorTextColor}"
-                                           FontSize="{DynamicResource LabelFontSize}"
-                                           TextWrapping="Wrap"/>
-
-                                <TextBlock Text="フルパス" Classes="field-label"/>
-                                <TextBox Text="{Binding FilePath, Mode=OneWay}"
-                                         Classes="readonly-field"
-                                         TextWrapping="Wrap"/>
-
-                                <Grid ColumnDefinitions="*,*" ColumnSpacing="{DynamicResource DetailItemSpacing}">
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="再生時間" Classes="field-label"/>
-                                        <TextBox Text="{Binding DurationDisplay, Mode=OneWay}" Classes="readonly-field"/>
+                                            <ItemsControl ItemsSource="{Binding UnregisteredCustomTags}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:CustomTagItemViewModel">
+                                                        <Border Background="{DynamicResource CardBackgroundColor}"
+                                                                BorderBrush="{DynamicResource MainWindowBorderColor}"
+                                                                BorderThickness="{DynamicResource ThinBorderThickness}"
+                                                                CornerRadius="{DynamicResource DefaultCornerRadius}"
+                                                                Padding="{DynamicResource CustomTagCardPadding}"
+                                                                Margin="{DynamicResource CustomTagCardMargin}">
+                                                            <StackPanel Spacing="{DynamicResource SmallItemSpacing}">
+                                                                <Grid ColumnDefinitions="*,Auto,Auto"
+                                                                      ColumnSpacing="{DynamicResource SmallItemSpacing}">
+                                                                    <TextBox Grid.Column="0"
+                                                                             Text="{Binding Key, Mode=OneWay}"
+                                                                             Classes="readonly-field"
+                                                                             Classes.error="{Binding HasKeyError}"/>
+                                                                    <Button Grid.Column="1"
+                                                                            Content="{DynamicResource RegisterCustomTagDefinitionButtonText}"
+                                                                            Command="{Binding RegisterDefinitionCommand}"
+                                                                            ToolTip.Tip="{DynamicResource RegisterCustomTagDefinitionToolTip}"
+                                                                            MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                                                            Padding="{DynamicResource CompactButtonPadding}"
+                                                                            FontSize="{DynamicResource LabelFontSize}"/>
+                                                                    <Button Grid.Column="2"
+                                                                            Content="{DynamicResource RemoveCustomTagButtonText}"
+                                                                            Command="{Binding RemoveCommand}"
+                                                                            ToolTip.Tip="{DynamicResource RemoveCustomTagToolTip}"
+                                                                            Width="{DynamicResource RemoveTagButtonWidth}"
+                                                                            Padding="{DynamicResource CompactButtonPadding}"
+                                                                            HorizontalContentAlignment="Center"/>
+                                                                </Grid>
+                                                                <TextBlock Text="{Binding KeyValidationError}"
+                                                                           IsVisible="{Binding HasKeyError}"
+                                                                           Foreground="{DynamicResource ErrorTextColor}"
+                                                                           FontSize="{DynamicResource LabelFontSize}"
+                                                                           TextWrapping="Wrap"/>
+                                                                <TextBox Text="{Binding Value, Mode=TwoWay}"
+                                                                         PlaceholderText="{DynamicResource CustomTagValuePlaceholder}"
+                                                                         Classes="editable-field"
+                                                                         TextWrapping="Wrap"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="ファイルサイズ" Classes="field-label"/>
-                                        <TextBox Text="{Binding FileSizeDisplay, Mode=OneWay}" Classes="readonly-field"/>
-                                    </StackPanel>
-                                </Grid>
 
-                                <TextBlock Text="音声フォーマット" Classes="field-label"/>
-                                <TextBox Text="{Binding AudioSpecDisplay, Mode=OneWay}" Classes="readonly-field"/>
-                            </StackPanel>
-                        </ScrollViewer>
+                                    <!-- ファイル・音声情報 -->
+                                    <TextBlock Text="ファイル・音声情報"
+                                               Classes="section-header"
+                                               IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.HasVisibleFileInfo}"/>
+
+                                    <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.FileName.IsVisible}">
+                                        <TextBlock Text="ファイル名" Classes="field-label"/>
+                                        <TextBox Text="{Binding FileName, Mode=OneWay}"
+                                                 Classes="readonly-field"
+                                                 Classes.error="{Binding HasFileNameError}"/>
+                                        <TextBlock Text="{Binding FileNameValidationError}"
+                                                   IsVisible="{Binding HasFileNameError}"
+                                                   Foreground="{DynamicResource ErrorTextColor}"
+                                                   FontSize="{DynamicResource LabelFontSize}"
+                                                   TextWrapping="Wrap"/>
+                                    </StackPanel>
+
+                                    <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.FilePath.IsVisible}">
+                                        <TextBlock Text="フルパス" Classes="field-label"/>
+                                        <TextBox Text="{Binding FilePath, Mode=OneWay}"
+                                                 Classes="readonly-field"
+                                                 TextWrapping="Wrap"/>
+                                    </StackPanel>
+
+                                    <Grid ColumnDefinitions="*,*"
+                                          ColumnSpacing="{DynamicResource DetailItemSpacing}"
+                                          IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.IsDurationOrFileSizeVisible}">
+                                        <StackPanel Grid.Column="0"
+                                                    IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Duration.IsVisible}">
+                                            <TextBlock Text="再生時間" Classes="field-label"/>
+                                            <TextBox Text="{Binding DurationDisplay, Mode=OneWay}" Classes="readonly-field"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1"
+                                                    IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.FileSize.IsVisible}">
+                                            <TextBlock Text="ファイルサイズ" Classes="field-label"/>
+                                            <TextBox Text="{Binding FileSizeDisplay, Mode=OneWay}" Classes="readonly-field"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.AudioFormat.IsVisible}">
+                                        <TextBlock Text="音声フォーマット" Classes="field-label"/>
+                                        <TextBox Text="{Binding AudioSpecDisplay, Mode=OneWay}" Classes="readonly-field"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
                     </Grid>
                 </Grid>
             </Border>

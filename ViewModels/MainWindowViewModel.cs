@@ -47,6 +47,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     private readonly ITsvPasteService? _tsvPasteService;
     private readonly ITextSearchReplaceService _textSearchReplaceService;
     private readonly IAppSettingsService? _appSettingsService;
+    private readonly ICustomTagDefinitionService? _customTagDefinitionService;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _saveCts;
     private CancellationTokenSource? _artworkCts;
@@ -100,6 +101,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(MoveArtworkRightCommand))]
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenCustomTagManagerCommand))]
     private bool _isLoading;
 
     [ObservableProperty]
@@ -123,6 +125,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(MoveArtworkRightCommand))]
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenCustomTagManagerCommand))]
     private bool _isSaving;
 
     [ObservableProperty]
@@ -146,6 +149,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(MoveArtworkRightCommand))]
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenCustomTagManagerCommand))]
     private bool _isArtworkLoading;
 
     [ObservableProperty]
@@ -169,6 +173,14 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         _textSearchReplaceService = new DesignTimeTextSearchReplaceService();
         SearchReplace = CreateSearchReplaceViewModel();
         ColumnSettings = new TrackGridColumnSettingsViewModel();
+        DetailPane = new DetailPaneLayoutViewModel();
+        CustomTagCatalog = new CustomTagCatalogViewModel(
+            initialDefinitions:
+            [
+                new CustomTagDefinition("LABEL", "レーベル", IsVisible: true),
+                new CustomTagDefinition("LYRICIST", "作詞者", IsVisible: true)
+            ]);
+        CustomTagCatalog.DefinitionsChanged += OnCustomTagDefinitionsChanged;
         SelectedTracks.CollectionChanged += OnSelectedTracksCollectionChanged;
 
         var sampleTrack = new FlacTrack
@@ -199,7 +211,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             ]
         };
 
-        var item = new TrackItemViewModel(sampleTrack);
+        var item = new TrackItemViewModel(sampleTrack, CustomTagCatalog);
         AttachTrack(item);
         Tracks.Add(item);
         DisplayedTracks.Add(item);
@@ -218,7 +230,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         IClipboardService clipboardService,
         ITsvPasteService tsvPasteService,
         ITextSearchReplaceService textSearchReplaceService,
-        IAppSettingsService appSettingsService)
+        IAppSettingsService appSettingsService,
+        ICustomTagDefinitionService customTagDefinitionService)
     {
         _flacTagService = flacTagService ?? throw new ArgumentNullException(nameof(flacTagService));
         _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
@@ -228,11 +241,17 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         _tsvPasteService = tsvPasteService ?? throw new ArgumentNullException(nameof(tsvPasteService));
         _textSearchReplaceService = textSearchReplaceService ?? throw new ArgumentNullException(nameof(textSearchReplaceService));
         _appSettingsService = appSettingsService ?? throw new ArgumentNullException(nameof(appSettingsService));
+        _customTagDefinitionService = customTagDefinitionService ?? throw new ArgumentNullException(nameof(customTagDefinitionService));
+
         SearchReplace = CreateSearchReplaceViewModel();
         ColumnSettings = new TrackGridColumnSettingsViewModel(_appSettingsService, message => StatusMessage = message);
+        DetailPane = new DetailPaneLayoutViewModel(_appSettingsService, message => StatusMessage = message);
+        CustomTagCatalog = new CustomTagCatalogViewModel(_customTagDefinitionService, message => StatusMessage = message);
+        CustomTagCatalog.DefinitionsChanged += OnCustomTagDefinitionsChanged;
+
         SelectedTracks.CollectionChanged += OnSelectedTracksCollectionChanged;
         _settingsLoadCts = new CancellationTokenSource();
-        _ = ColumnSettings.LoadAsync(_settingsLoadCts.Token);
+        _ = LoadInitialSettingsAsync(_settingsLoadCts.Token);
     }
 
     public ObservableCollection<TrackItemViewModel> Tracks { get; } = new();
@@ -244,6 +263,10 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     public SearchReplaceViewModel SearchReplace { get; }
 
     public TrackGridColumnSettingsViewModel ColumnSettings { get; }
+
+    public DetailPaneLayoutViewModel DetailPane { get; }
+
+    public CustomTagCatalogViewModel CustomTagCatalog { get; }
 
     public bool IsBusy => IsLoading || IsSaving || IsArtworkLoading;
 
@@ -347,6 +370,35 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
         CancelNonSavingOperations();
         return true;
+    }
+
+    /// <summary>
+    /// アプリ終了時に未完了の設定・独自タグ定義保存を同期的にフラッシュする。
+    /// </summary>
+    public void FlushPendingSavesSync()
+    {
+        ColumnSettings.FlushPendingSaveSync();
+        DetailPane.FlushPendingSaveSync();
+        CustomTagCatalog.FlushPendingSaveSync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpen))]
+    private async Task OpenCustomTagManagerAsync()
+    {
+        if (_dialogService is null || IsBusy)
+        {
+            return;
+        }
+
+        var currentSnapshot = CustomTagCatalog.GetSnapshot();
+        var updatedDefinitions = await _dialogService.ShowCustomTagManagerAsync(currentSnapshot);
+        if (updatedDefinitions is null)
+        {
+            return;
+        }
+
+        CustomTagCatalog.ApplyDefinitions(updatedDefinitions);
+        StatusMessage = $"独自タグ定義を更新しました（{CustomTagCatalog.Definitions.Count} 件）";
     }
 
     [RelayCommand(CanExecute = nameof(CanOpen))]
@@ -808,6 +860,40 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         await SaveAllCoreAsync();
     }
 
+    private async Task LoadInitialSettingsAsync(CancellationToken cancellationToken)
+    {
+        await ColumnSettings.LoadAsync(cancellationToken);
+        await DetailPane.LoadAsync(cancellationToken);
+        await CustomTagCatalog.LoadAsync(cancellationToken);
+    }
+
+    private void OnCustomTagDefinitionsChanged(object? sender, EventArgs e)
+    {
+        if (_disposed || Tracks.Count == 0)
+        {
+            return;
+        }
+
+        _isBatchUpdatingTracks = true;
+        try
+        {
+            foreach (var track in Tracks)
+            {
+                track.RefreshCustomTagDefinitions();
+            }
+        }
+        finally
+        {
+            _isBatchUpdatingTracks = false;
+        }
+
+        RefreshDirtyState();
+        if (SearchReplace.IsOpen && !SearchReplace.IsExecutingReplace)
+        {
+            SearchReplace.RefreshResults(notifyFilter: true);
+        }
+    }
+
     private async Task<bool> SaveAllCoreAsync()
     {
         var dirtyTracks = Tracks.Where(t => t.IsDirty).ToList();
@@ -1262,7 +1348,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
                 continue;
             }
 
-            var item = new TrackItemViewModel(track);
+            var item = new TrackItemViewModel(track, CustomTagCatalog);
             AttachTrack(item);
             Tracks.Add(item);
         }
@@ -1302,7 +1388,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
                 continue;
             }
 
-            var item = new TrackItemViewModel(track);
+            var item = new TrackItemViewModel(track, CustomTagCatalog);
             AttachTrack(item);
             Tracks.Add(item);
             addedCount++;
@@ -1986,6 +2072,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
 
         _disposed = true;
+        CustomTagCatalog.DefinitionsChanged -= OnCustomTagDefinitionsChanged;
         SelectedTracks.CollectionChanged -= OnSelectedTracksCollectionChanged;
         _loadCts?.Cancel();
         _loadCts?.Dispose();
@@ -2004,6 +2091,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         _settingsLoadCts = null;
 
         ColumnSettings.Dispose();
+        DetailPane.Dispose();
+        CustomTagCatalog.Dispose();
 
         ClearTracks();
     }
