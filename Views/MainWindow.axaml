@@ -273,6 +273,12 @@
                             Orientation="Horizontal"
                             Spacing="{DynamicResource StatusRightSpacing}"
                             VerticalAlignment="Center">
+                    <TextBlock Text="{Binding SelectedCountText}"
+                               IsVisible="{Binding HasMultipleSelectedTracks}"
+                               Foreground="{DynamicResource SectionHeaderColor}"
+                               FontSize="{DynamicResource StatusFontSize}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
                     <TextBlock Text="{Binding DirtyCountText}"
                                IsVisible="{Binding HasDirtyTracks}"
                                Foreground="{DynamicResource DirtyIndicatorColor}"
@@ -566,15 +572,26 @@
                               CanUserResizeColumns="True"
                               CanUserSortColumns="True"
                               GridLinesVisibility="Horizontal"
-                              SelectionMode="Single"
+                              SelectionMode="Extended"
                               Background="{DynamicResource MainWindowBackgroundColor}"
                               views:DataGridPasteBehavior.PasteCommand="{Binding PasteTsvCommand}"
                               views:DataGridSelectionBehavior.ScrollSelectedItemIntoView="True"
+                              views:DataGridSelectionBehavior.SelectedItems="{Binding SelectedTracks}"
                               views:DataGridColumnSettingsBehavior.ColumnSettings="{Binding ColumnSettings}">
                     <DataGrid.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="{DynamicResource PasteTsvContextMenuText}"
                                       Command="{Binding #TracksDataGrid.(views:DataGridPasteBehavior.TriggerPasteCommand)}"/>
+                            <Separator/>
+                            <MenuItem Header="{DynamicResource SelectArtworkContextMenuText}"
+                                      Command="{Binding SelectArtworkCommand}"/>
+                            <MenuItem Header="{DynamicResource RemoveArtworkContextMenuText}"
+                                      Command="{Binding RemoveArtworkCommand}"/>
+                            <Separator/>
+                            <MenuItem Header="{DynamicResource SaveSelectedContextMenuText}"
+                                      Command="{Binding SaveSelectedCommand}"/>
+                            <MenuItem Header="{DynamicResource RevertSelectedContextMenuText}"
+                                      Command="{Binding RevertSelectedCommand}"/>
                             <Separator/>
                             <MenuItem Header="{DynamicResource ColumnsContextMenuText}"
                                       ItemsSource="{Binding ColumnSettings.ToggleableColumns}">
@@ -760,6 +777,19 @@
                                 <!-- アートワーク表示・設定（D&D対応） -->
                                 <StackPanel HorizontalAlignment="Center"
                                             Spacing="{DynamicResource DetailItemSpacing}">
+                                    <Border IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMultipleSelectedTracks}"
+                                            Background="{DynamicResource SelectionBadgeBackgroundColor}"
+                                            BorderBrush="{DynamicResource SelectionBadgeBorderColor}"
+                                            BorderThickness="{DynamicResource ThinBorderThickness}"
+                                            CornerRadius="{DynamicResource DefaultCornerRadius}"
+                                            Padding="{DynamicResource SelectionBadgePadding}"
+                                            HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ArtworkTargetSummaryText}"
+                                                   Foreground="{DynamicResource SectionHeaderColor}"
+                                                   FontSize="{DynamicResource LabelFontSize}"
+                                                   FontWeight="SemiBold"
+                                                   TextAlignment="Center"/>
+                                    </Border>
                                     <Border Width="{DynamicResource ArtworkContainerSize}"
                                             Height="{DynamicResource ArtworkContainerSize}"
                                             Background="{DynamicResource CardBackgroundColor}"
@@ -784,7 +814,7 @@
                                             <Border Classes="artwork-drop-overlay"
                                                     Background="{DynamicResource DropTargetOverlayBackgroundColor}"
                                                     IsHitTestVisible="False">
-                                                <TextBlock Text="{DynamicResource ArtworkDropActiveText}"
+                                                <TextBlock Text="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).ArtworkDropOverlayText}"
                                                            Foreground="{DynamicResource TextColor}"
                                                            FontSize="{DynamicResource BodyFontSize}"
                                                            FontWeight="SemiBold"
@@ -799,6 +829,13 @@
                                     <TextBlock Text="{Binding ArtworkInfoDisplay}"
                                                Foreground="{DynamicResource SecondaryTextColor}"
                                                FontSize="{DynamicResource LabelFontSize}"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).MixedArtworkNoticeText}"
+                                               IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).HasMixedArtworkInSelection}"
+                                               Foreground="{DynamicResource PreviewWarningTextColor}"
+                                               FontSize="{DynamicResource LabelFontSize}"
+                                               TextWrapping="Wrap"
+                                               TextAlignment="Center"
                                                HorizontalAlignment="Center"/>
                                     <StackPanel Orientation="Horizontal"
                                                 HorizontalAlignment="Center"

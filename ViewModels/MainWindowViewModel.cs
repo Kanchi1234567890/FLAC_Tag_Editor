@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -21,6 +22,9 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     private const string OpenFilesDialogTitle = "FLACファイルを選択";
     private const string AppendFilesDialogTitle = "追加するFLACファイルを選択";
     private const string OpenArtworkDialogTitle = "アートワーク画像を選択";
+    private const string SingleArtworkDropOverlayText = "ここにドロップして設定";
+    private const string DefaultArtworkLoadingMessage = "アートワークを読み込み中...";
+    private const string DropArtworkLoadingMessage = "ドロップされたアートワークを取得中...";
     private const string InitialStatusMessage = "フォルダまたはFLACファイルを選択してください";
     private const string DuplicateFileNameErrorMessage = "同一フォルダ内に同名のファイルが重複しています。";
     private const string CloseWhileSavingMessage = "保存処理の完了後にウィンドウを閉じてください";
@@ -39,6 +43,14 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     private CancellationTokenSource? _artworkCts;
     private CancellationTokenSource? _settingsLoadCts;
     private bool _isUpdatingExternalValidation;
+    private bool _isUpdatingSelectedTracks;
+    private bool _isBatchUpdatingTracks;
+    private int _selectedTrackCount;
+    private bool _hasAnySelectedDirtyTrack;
+    private bool _hasAnySelectedValidDirtyTrack;
+    private bool _hasAnySelectedArtworkTrack;
+    private bool _hasMixedArtworkInSelection;
+    private string _mixedArtworkNoticeText = string.Empty;
     private bool _disposed;
 
     [ObservableProperty]
@@ -119,6 +131,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         _textSearchReplaceService = new DesignTimeTextSearchReplaceService();
         SearchReplace = CreateSearchReplaceViewModel();
         ColumnSettings = new TrackGridColumnSettingsViewModel();
+        SelectedTracks.CollectionChanged += OnSelectedTracksCollectionChanged;
 
         var sampleTrack = new FlacTrack
         {
@@ -153,6 +166,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         Tracks.Add(item);
         DisplayedTracks.Add(item);
         SelectedTrack = Tracks[0];
+        ReplaceSelectedTracks([Tracks[0]]);
         CurrentSourcePath = @"C:\Music\Sample Album";
         StatusMessage = "1 件のFLACファイルを読み込みました";
     }
@@ -178,6 +192,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         _appSettingsService = appSettingsService ?? throw new ArgumentNullException(nameof(appSettingsService));
         SearchReplace = CreateSearchReplaceViewModel();
         ColumnSettings = new TrackGridColumnSettingsViewModel(_appSettingsService, message => StatusMessage = message);
+        SelectedTracks.CollectionChanged += OnSelectedTracksCollectionChanged;
         _settingsLoadCts = new CancellationTokenSource();
         _ = ColumnSettings.LoadAsync(_settingsLoadCts.Token);
     }
@@ -185,6 +200,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     public ObservableCollection<TrackItemViewModel> Tracks { get; } = new();
 
     public ObservableCollection<TrackItemViewModel> DisplayedTracks { get; } = new();
+
+    public BulkObservableCollection<TrackItemViewModel> SelectedTracks { get; } = new();
 
     public SearchReplaceViewModel SearchReplace { get; }
 
@@ -200,6 +217,26 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     public bool HasSelectedTrack => SelectedTrack is not null;
 
+    public int SelectedTrackCount => _selectedTrackCount;
+
+    public bool HasMultipleSelectedTracks => _selectedTrackCount > 1;
+
+    public string SelectedCountText => HasMultipleSelectedTracks
+        ? $"{_selectedTrackCount} 件選択中"
+        : string.Empty;
+
+    public string ArtworkTargetSummaryText => HasMultipleSelectedTracks
+        ? $"選択中 {_selectedTrackCount} 件のトラックに一括適用"
+        : string.Empty;
+
+    public string ArtworkDropOverlayText => HasMultipleSelectedTracks
+        ? $"ここにドロップして {_selectedTrackCount} 件に設定"
+        : SingleArtworkDropOverlayText;
+
+    public bool HasMixedArtworkInSelection => _hasMixedArtworkInSelection;
+
+    public string MixedArtworkNoticeText => _mixedArtworkNoticeText;
+
     public bool HasDirtyTracks => DirtyTrackCount > 0;
 
     public bool ShouldInterceptClose => IsSaving || HasDirtyTracks;
@@ -212,17 +249,17 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     private bool CanOpen => !IsBusy;
 
-    private bool CanSaveSelected => !IsBusy && SelectedTrack is { IsDirty: true, HasValidationErrors: false };
+    private bool CanSaveSelected => !IsBusy && _hasAnySelectedValidDirtyTrack;
 
     private bool CanSaveAll => !IsBusy && Tracks.Any(t => t.IsDirty && !t.HasValidationErrors);
 
-    private bool CanRevertSelected => !IsBusy && SelectedTrack is { IsDirty: true };
+    private bool CanRevertSelected => !IsBusy && _hasAnySelectedDirtyTrack;
 
     private bool CanRevertAll => !IsBusy && HasDirtyTracks;
 
-    private bool CanEditArtwork => !IsBusy && SelectedTrack is not null;
+    private bool CanEditArtwork => !IsBusy && _selectedTrackCount > 0;
 
-    private bool CanRemoveArtwork => !IsBusy && SelectedTrack is { HasArtwork: true };
+    private bool CanRemoveArtwork => !IsBusy && _hasAnySelectedArtworkTrack;
 
     private bool CanPasteTsv => !IsBusy && HasTracks;
 
@@ -347,7 +384,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [RelayCommand(CanExecute = nameof(CanEditArtwork))]
     private async Task SelectArtworkAsync()
     {
-        if (_fileDialogService is null || _artworkService is null || SelectedTrack is not { } target)
+        var targets = GetSelectedTracksSnapshot();
+        if (_fileDialogService is null || _artworkService is null || targets.Count == 0)
         {
             return;
         }
@@ -359,28 +397,57 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
 
         await ApplyArtworkCoreAsync(
-            target,
+            targets,
             ct => _artworkService.LoadFromFileAsync(imagePath, ct),
-            "アートワークを読み込み中...");
+            targets.Count == 1
+                ? DefaultArtworkLoadingMessage
+                : $"{targets.Count} 件のトラック用アートワークを読み込み中...");
     }
 
     [RelayCommand(CanExecute = nameof(CanRemoveArtwork))]
     private void RemoveArtwork()
     {
-        if (SelectedTrack is not { HasArtwork: true } target)
+        var targets = GetSelectedTracksSnapshot();
+        var removableTargets = targets.Where(t => t.HasArtworkData).ToList();
+        if (removableTargets.Count == 0)
         {
             return;
         }
 
-        target.RemoveArtwork();
+        _isBatchUpdatingTracks = true;
+        try
+        {
+            foreach (var target in removableTargets)
+            {
+                target.RemoveArtwork();
+            }
+        }
+        finally
+        {
+            _isBatchUpdatingTracks = false;
+        }
+
         RefreshDirtyState();
-        StatusMessage = $"{target.FileName} のアートワークを削除しました（未保存）";
+        var skippedCount = targets.Count - removableTargets.Count;
+        if (targets.Count == 1)
+        {
+            StatusMessage = $"{removableTargets[0].FileName} のアートワークを削除しました（未保存）";
+        }
+        else if (skippedCount > 0)
+        {
+            StatusMessage = $"{removableTargets.Count} 件のトラックからアートワークを削除しました（アートワークなし {skippedCount} 件・未保存）";
+        }
+        else
+        {
+            StatusMessage = $"{removableTargets.Count} 件のトラックからアートワークを削除しました（未保存）";
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanEditArtwork))]
     private async Task DropArtworkAsync(ArtworkDropPayload? payload)
     {
-        if (_artworkService is null || SelectedTrack is not { } target)
+        var targets = GetSelectedTracksSnapshot();
+        if (_artworkService is null || targets.Count == 0)
         {
             return;
         }
@@ -392,9 +459,11 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
 
         await ApplyArtworkCoreAsync(
-            target,
+            targets,
             ct => _artworkService.ResolveFromDropAsync(payload, ct),
-            "ドロップされたアートワークを取得中...");
+            targets.Count == 1
+                ? DropArtworkLoadingMessage
+                : $"ドロップされたアートワークを取得中（対象 {targets.Count} 件）...");
     }
 
     [RelayCommand(CanExecute = nameof(CanPasteTsv))]
@@ -499,61 +568,23 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [RelayCommand(CanExecute = nameof(CanSaveSelected))]
     private async Task SaveSelectedAsync()
     {
-        if (_flacTagService is null || SelectedTrack is not { IsDirty: true } target)
+        var dirtySelectedTracks = GetSelectedTracksSnapshot()
+            .Where(t => t.IsDirty)
+            .ToList();
+        if (dirtySelectedTracks.Count == 0)
         {
             return;
         }
 
-        if (target.HasValidationErrors)
+        if (dirtySelectedTracks.Count == 1 && dirtySelectedTracks[0].HasValidationErrors)
         {
-            StatusMessage = $"保存エラー ({target.FileName}): {target.ValidationErrorMessage}";
+            StatusMessage = $"保存エラー ({dirtySelectedTracks[0].FileName}): {dirtySelectedTracks[0].ValidationErrorMessage}";
             return;
         }
 
-        _saveCts?.Dispose();
-        _saveCts = new CancellationTokenSource();
-        var cancellationToken = _saveCts.Token;
-
-        IsSaving = true;
-        StatusMessage = $"{target.FileName} を保存中...";
-
-        try
-        {
-            var editedTrack = target.BuildEditedTrack();
-            var result = await _flacTagService.SaveTracksAsync([editedTrack], cancellationToken);
-            if (result.Errors.Count > 0)
-            {
-                StatusMessage = $"保存エラー ({target.FileName}): {result.Errors[0].Message}";
-                return;
-            }
-
-            if (result.SavedTracks.Count > 0)
-            {
-                var savedTrack = result.SavedEntries.Count > 0
-                    ? result.SavedEntries[0].Track
-                    : result.SavedTracks[0];
-                target.AcceptChanges(savedTrack);
-                RefreshDirtyState();
-                if (SearchReplace.IsOpen)
-                {
-                    SearchReplace.RefreshResults(notifyFilter: true);
-                }
-
-                StatusMessage = $"{target.FileName} を保存しました";
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            StatusMessage = "保存をキャンセルしました";
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"保存エラー ({target.FileName}): {ex.Message}";
-        }
-        finally
-        {
-            IsSaving = false;
-        }
+        await SaveTracksCoreAsync(
+            dirtySelectedTracks,
+            useSingleFileNameStatus: dirtySelectedTracks.Count == 1);
     }
 
     [RelayCommand(CanExecute = nameof(CanSaveAll))]
@@ -563,6 +594,20 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     }
 
     private async Task<bool> SaveAllCoreAsync()
+    {
+        var dirtyTracks = Tracks.Where(t => t.IsDirty).ToList();
+        if (dirtyTracks.Count == 0)
+        {
+            return true;
+        }
+
+        var succeeded = await SaveTracksCoreAsync(dirtyTracks, useSingleFileNameStatus: false);
+        return succeeded && !HasDirtyTracks;
+    }
+
+    private async Task<bool> SaveTracksCoreAsync(
+        IReadOnlyList<TrackItemViewModel> targetTracks,
+        bool useSingleFileNameStatus)
     {
         if (_flacTagService is null)
         {
@@ -575,8 +620,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             return false;
         }
 
-        var dirtyTracks = Tracks.Where(t => t.IsDirty).ToList();
-        if (dirtyTracks.Count == 0)
+        if (targetTracks.Count == 0)
         {
             return true;
         }
@@ -586,11 +630,13 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         var cancellationToken = _saveCts.Token;
 
         IsSaving = true;
-        StatusMessage = $"{dirtyTracks.Count} 件のFLACファイルを保存中...";
+        StatusMessage = useSingleFileNameStatus
+            ? $"{targetTracks[0].FileName} を保存中..."
+            : $"{targetTracks.Count} 件のFLACファイルを保存中...";
 
         try
         {
-            var editedTracks = dirtyTracks.Select(t => t.BuildEditedTrack()).ToList();
+            var editedTracks = targetTracks.Select(t => t.BuildEditedTrack()).ToList();
             var result = await _flacTagService.SaveTracksAsync(editedTracks, cancellationToken);
 
             var savedByOriginalPath = new Dictionary<string, FlacTrack>(StringComparer.OrdinalIgnoreCase);
@@ -609,12 +655,20 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
                 }
             }
 
-            foreach (var item in dirtyTracks)
+            _isBatchUpdatingTracks = true;
+            try
             {
-                if (savedByOriginalPath.TryGetValue(item.FilePath, out var savedTrack))
+                foreach (var item in targetTracks)
                 {
-                    item.AcceptChanges(savedTrack);
+                    if (savedByOriginalPath.TryGetValue(item.FilePath, out var savedTrack))
+                    {
+                        item.AcceptChanges(savedTrack);
+                    }
                 }
+            }
+            finally
+            {
+                _isBatchUpdatingTracks = false;
             }
 
             RefreshDirtyState();
@@ -623,8 +677,18 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
                 SearchReplace.RefreshResults(notifyFilter: true);
             }
 
-            StatusMessage = BuildSaveStatusMessage(result);
-            return result.Errors.Count == 0 && !HasDirtyTracks;
+            if (useSingleFileNameStatus)
+            {
+                StatusMessage = result.Errors.Count > 0
+                    ? $"保存エラー ({targetTracks[0].FileName}): {result.Errors[0].Message}"
+                    : $"{targetTracks[0].FileName} を保存しました";
+            }
+            else
+            {
+                StatusMessage = BuildSaveStatusMessage(result);
+            }
+
+            return result.Errors.Count == 0 && targetTracks.All(t => !t.IsDirty);
         }
         catch (OperationCanceledException)
         {
@@ -633,7 +697,9 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
         catch (Exception ex)
         {
-            StatusMessage = $"一括保存エラー: {ex.Message}";
+            StatusMessage = useSingleFileNameStatus
+                ? $"保存エラー ({targetTracks[0].FileName}): {ex.Message}"
+                : $"一括保存エラー: {ex.Message}";
             return false;
         }
         finally
@@ -645,19 +711,36 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [RelayCommand(CanExecute = nameof(CanRevertSelected))]
     private void RevertSelected()
     {
-        if (SelectedTrack is not { IsDirty: true } target)
+        var dirtySelectedTracks = GetSelectedTracksSnapshot()
+            .Where(t => t.IsDirty)
+            .ToList();
+        if (dirtySelectedTracks.Count == 0)
         {
             return;
         }
 
-        target.RevertChanges();
+        _isBatchUpdatingTracks = true;
+        try
+        {
+            foreach (var item in dirtySelectedTracks)
+            {
+                item.RevertChanges();
+            }
+        }
+        finally
+        {
+            _isBatchUpdatingTracks = false;
+        }
+
         RefreshDirtyState();
         if (SearchReplace.IsOpen)
         {
             SearchReplace.RefreshResults(notifyFilter: true);
         }
 
-        StatusMessage = $"{target.FileName} の変更を破棄しました";
+        StatusMessage = dirtySelectedTracks.Count == 1
+            ? $"{dirtySelectedTracks[0].FileName} の変更を破棄しました"
+            : $"選択中の {dirtySelectedTracks.Count} 件の変更を破棄しました";
     }
 
     [RelayCommand(CanExecute = nameof(CanRevertAll))]
@@ -669,9 +752,17 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             return;
         }
 
-        foreach (var item in dirtyTracks)
+        _isBatchUpdatingTracks = true;
+        try
         {
-            item.RevertChanges();
+            foreach (var item in dirtyTracks)
+            {
+                item.RevertChanges();
+            }
+        }
+        finally
+        {
+            _isBatchUpdatingTracks = false;
         }
 
         RefreshDirtyState();
@@ -731,7 +822,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     }
 
     private async Task ApplyArtworkCoreAsync(
-        TrackItemViewModel target,
+        IReadOnlyList<TrackItemViewModel> targets,
         Func<CancellationToken, Task<ArtworkImage>> fetchOperation,
         string progressMessage)
     {
@@ -746,9 +837,21 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         try
         {
             var artwork = await fetchOperation(cancellationToken);
-            target.SetArtwork(artwork.Data, artwork.MimeType);
+            _isBatchUpdatingTracks = true;
+            try
+            {
+                foreach (var target in targets)
+                {
+                    target.SetArtwork(artwork.Data, artwork.MimeType);
+                }
+            }
+            finally
+            {
+                _isBatchUpdatingTracks = false;
+            }
+
             RefreshDirtyState();
-            StatusMessage = BuildArtworkAppliedMessage(target.FileName, artwork);
+            StatusMessage = BuildArtworkAppliedMessage(targets, artwork);
         }
         catch (OperationCanceledException)
         {
@@ -830,7 +933,9 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         OnPropertyChanged(nameof(HasTracks));
         SearchReplace.RefreshResults(notifyFilter: false);
         SyncDisplayedTracks();
-        SelectedTrack = DisplayedTracks.FirstOrDefault();
+        var firstTrack = DisplayedTracks.FirstOrDefault();
+        SelectedTrack = firstTrack;
+        ReplaceSelectedTracks(firstTrack is not null ? [firstTrack] : []);
         RefreshDirtyState();
 
         StatusMessage = BuildLoadStatusMessage(result);
@@ -875,7 +980,9 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
         if (SelectedTrack is null)
         {
-            SelectedTrack = DisplayedTracks.FirstOrDefault();
+            var firstTrack = DisplayedTracks.FirstOrDefault();
+            SelectedTrack = firstTrack;
+            ReplaceSelectedTracks(firstTrack is not null ? [firstTrack] : []);
         }
 
         RefreshDirtyState();
@@ -884,6 +991,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     private void ClearTracks()
     {
+        ReplaceSelectedTracks([]);
         SelectedTrack = null;
         DisplayedTracks.Clear();
 
@@ -918,14 +1026,16 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     private void OnTrackItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (_isUpdatingExternalValidation)
+        if (_isUpdatingExternalValidation || _isBatchUpdatingTracks)
         {
             return;
         }
 
         if (string.Equals(e.PropertyName, nameof(TrackItemViewModel.IsDirty), StringComparison.Ordinal)
             || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasValidationErrors), StringComparison.Ordinal)
-            || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasArtwork), StringComparison.Ordinal))
+            || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasArtwork), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(TrackItemViewModel.HasArtworkData), StringComparison.Ordinal)
+            || string.Equals(e.PropertyName, nameof(TrackItemViewModel.ArtworkBitmap), StringComparison.Ordinal))
         {
             RefreshDirtyState();
         }
@@ -940,6 +1050,18 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     partial void OnSelectedTrackChanged(TrackItemViewModel? value)
     {
+        UpdateSelectionDerivedState();
+        SearchReplace.NotifyCommandStates();
+    }
+
+    private void OnSelectedTracksCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_isUpdatingSelectedTracks)
+        {
+            return;
+        }
+
+        UpdateSelectionDerivedState();
         SearchReplace.NotifyCommandStates();
     }
 
@@ -962,14 +1084,10 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     {
         ValidateDuplicateFileNames();
         DirtyTrackCount = Tracks.Count(t => t.IsDirty);
-        SaveSelectedCommand.NotifyCanExecuteChanged();
-        RevertSelectedCommand.NotifyCanExecuteChanged();
         SaveAllCommand.NotifyCanExecuteChanged();
         RevertAllCommand.NotifyCanExecuteChanged();
-        SelectArtworkCommand.NotifyCanExecuteChanged();
-        RemoveArtworkCommand.NotifyCanExecuteChanged();
-        DropArtworkCommand.NotifyCanExecuteChanged();
         PasteTsvCommand.NotifyCanExecuteChanged();
+        UpdateSelectionDerivedState();
         SearchReplace.NotifyCommandStates();
     }
 
@@ -994,6 +1112,150 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
 
         SelectedTrack = track;
+        ReplaceSelectedTracks([track]);
+    }
+
+    private List<TrackItemViewModel> GetSelectedTracksSnapshot()
+    {
+        if (Tracks.Count == 0)
+        {
+            return [];
+        }
+
+        var loadedTracks = new HashSet<TrackItemViewModel>(Tracks);
+        if (SelectedTracks.Count > 0)
+        {
+            var result = new List<TrackItemViewModel>(SelectedTracks.Count);
+            var seen = new HashSet<TrackItemViewModel>();
+            foreach (var track in SelectedTracks)
+            {
+                if (track is not null && loadedTracks.Contains(track) && seen.Add(track))
+                {
+                    result.Add(track);
+                }
+            }
+
+            if (result.Count > 0)
+            {
+                return result;
+            }
+        }
+
+        if (SelectedTrack is { } primary && loadedTracks.Contains(primary))
+        {
+            return [primary];
+        }
+
+        return [];
+    }
+
+    private void ReplaceSelectedTracks(IReadOnlyList<TrackItemViewModel> desiredTracks)
+    {
+        var uniqueDesired = new List<TrackItemViewModel>(desiredTracks.Count);
+        var desiredSet = new HashSet<TrackItemViewModel>();
+        foreach (var track in desiredTracks)
+        {
+            if (track is not null && desiredSet.Add(track))
+            {
+                uniqueDesired.Add(track);
+            }
+        }
+
+        if (SelectedTracks.Count == uniqueDesired.Count
+            && SelectedTracks.All(desiredSet.Contains))
+        {
+            UpdateSelectionDerivedState();
+            return;
+        }
+
+        _isUpdatingSelectedTracks = true;
+        try
+        {
+            SelectedTracks.ReplaceAll(uniqueDesired);
+        }
+        finally
+        {
+            _isUpdatingSelectedTracks = false;
+        }
+
+        UpdateSelectionDerivedState();
+    }
+
+    private void UpdateSelectionDerivedState()
+    {
+        var selectedTracks = GetSelectedTracksSnapshot();
+        var newCount = selectedTracks.Count;
+        var hasDirty = false;
+        var hasValidDirty = false;
+        var hasArtwork = false;
+        var withArtworkCount = 0;
+        var hasMixedArtwork = false;
+        var referenceTrack = SelectedTrack is { } primary && selectedTracks.Contains(primary)
+            ? primary
+            : selectedTracks.FirstOrDefault();
+
+        foreach (var track in selectedTracks)
+        {
+            if (track.IsDirty)
+            {
+                hasDirty = true;
+                if (!track.HasValidationErrors)
+                {
+                    hasValidDirty = true;
+                }
+            }
+
+            if (track.HasArtworkData)
+            {
+                hasArtwork = true;
+                withArtworkCount++;
+            }
+
+            if (!hasMixedArtwork && referenceTrack is not null && !referenceTrack.HasSameArtworkAs(track))
+            {
+                hasMixedArtwork = true;
+            }
+        }
+
+        var newMixedNotice = hasMixedArtwork
+            ? $"※ 選択中の {newCount} 件に異なるアートワークが含まれます（設定済み: {withArtworkCount} 件）"
+            : string.Empty;
+
+        var countChanged = _selectedTrackCount != newCount;
+        var mixedChanged = _hasMixedArtworkInSelection != hasMixedArtwork;
+        var mixedNoticeChanged = !string.Equals(_mixedArtworkNoticeText, newMixedNotice, StringComparison.Ordinal);
+
+        _selectedTrackCount = newCount;
+        _hasAnySelectedDirtyTrack = hasDirty;
+        _hasAnySelectedValidDirtyTrack = hasValidDirty;
+        _hasAnySelectedArtworkTrack = hasArtwork;
+        _hasMixedArtworkInSelection = hasMixedArtwork;
+        _mixedArtworkNoticeText = newMixedNotice;
+
+        if (countChanged)
+        {
+            OnPropertyChanged(nameof(SelectedTrackCount));
+            OnPropertyChanged(nameof(HasMultipleSelectedTracks));
+            OnPropertyChanged(nameof(SelectedCountText));
+            OnPropertyChanged(nameof(ArtworkTargetSummaryText));
+            OnPropertyChanged(nameof(ArtworkDropOverlayText));
+        }
+
+        if (mixedChanged)
+        {
+            OnPropertyChanged(nameof(HasMixedArtworkInSelection));
+        }
+
+        if (mixedNoticeChanged)
+        {
+            OnPropertyChanged(nameof(MixedArtworkNoticeText));
+        }
+
+        SaveSelectedCommand.NotifyCanExecuteChanged();
+        RevertSelectedCommand.NotifyCanExecuteChanged();
+        SelectArtworkCommand.NotifyCanExecuteChanged();
+        RemoveArtworkCommand.NotifyCanExecuteChanged();
+        DropArtworkCommand.NotifyCanExecuteChanged();
     }
 
     private void OnSearchReplaceApplied(string statusMessage)
@@ -1011,6 +1273,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         if (!HasSameSequence(DisplayedTracks, desiredTracks))
         {
             var previousSelected = SelectedTrack;
+            var previousSelectedTracks = SelectedTracks.ToList();
 
             DisplayedTracks.Clear();
             foreach (var item in desiredTracks)
@@ -1018,14 +1281,26 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
                 DisplayedTracks.Add(item);
             }
 
-            if (previousSelected is not null && DisplayedTracks.Contains(previousSelected))
+            var displayedSet = new HashSet<TrackItemViewModel>(DisplayedTracks);
+            var retainedSelection = previousSelectedTracks
+                .Where(displayedSet.Contains)
+                .ToList();
+
+            if (previousSelected is not null && displayedSet.Contains(previousSelected))
             {
                 SelectedTrack = previousSelected;
             }
             else
             {
-                SelectedTrack = DisplayedTracks.FirstOrDefault();
+                SelectedTrack = retainedSelection.FirstOrDefault() ?? DisplayedTracks.FirstOrDefault();
             }
+
+            if (retainedSelection.Count == 0 && SelectedTrack is not null)
+            {
+                retainedSelection.Add(SelectedTrack);
+            }
+
+            ReplaceSelectedTracks(retainedSelection);
         }
 
         OnPropertyChanged(nameof(HasDisplayedTracks));
@@ -1245,14 +1520,20 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         return $"{affectedRowCount} 行 × {affectedColumnCount} 列（{appliedCells} セル）を貼り付けました（未保存）";
     }
 
-    private static string BuildArtworkAppliedMessage(string fileName, ArtworkImage artwork)
+    private static string BuildArtworkAppliedMessage(
+        IReadOnlyList<TrackItemViewModel> targets,
+        ArtworkImage artwork)
     {
+        var targetPrefix = targets.Count == 1
+            ? $"{targets[0].FileName} に"
+            : $"{targets.Count} 件のトラックに";
+
         if (artwork.WasConverted && !string.IsNullOrWhiteSpace(artwork.OriginalFormatName))
         {
-            return $"{fileName} にアートワークを設定しました（{artwork.OriginalFormatName} → {artwork.MimeType} に変換・未保存）";
+            return $"{targetPrefix}アートワークを設定しました（{artwork.OriginalFormatName} → {artwork.MimeType} に変換・未保存）";
         }
 
-        return $"{fileName} にアートワークを設定しました（{artwork.MimeType}・未保存）";
+        return $"{targetPrefix}アートワークを設定しました（{artwork.MimeType}・未保存）";
     }
 
     private static string BuildLoadStatusMessage(TrackLoadResult result)
@@ -1325,6 +1606,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
 
         _disposed = true;
+        SelectedTracks.CollectionChanged -= OnSelectedTracksCollectionChanged;
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         _loadCts = null;

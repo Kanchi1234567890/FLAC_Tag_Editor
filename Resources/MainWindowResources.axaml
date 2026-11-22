@@ -51,6 +51,8 @@
     <SolidColorBrush x:Key="PreviewReadyTextColor" Color="#FF81C784"/>
     <SolidColorBrush x:Key="SearchOptionCheckedBackgroundColor" Color="#FF2B4C7E"/>
     <SolidColorBrush x:Key="SearchOptionCheckedBorderColor" Color="#FF78B7FF"/>
+    <SolidColorBrush x:Key="SelectionBadgeBackgroundColor" Color="#3378B7FF"/>
+    <SolidColorBrush x:Key="SelectionBadgeBorderColor" Color="#8878B7FF"/>
 
     <!-- Layout Sizes -->
     <GridLength x:Key="DetailPaneInitialWidth">380</GridLength>
@@ -117,6 +119,7 @@
     <Thickness x:Key="CompactButtonPadding">8,2</Thickness>
     <Thickness x:Key="ArtworkActionButtonPadding">10,4</Thickness>
     <Thickness x:Key="ArtworkHintPadding">12</Thickness>
+    <Thickness x:Key="SelectionBadgePadding">10,4</Thickness>
     <Thickness x:Key="SearchBarPadding">10,8</Thickness>
     <Thickness x:Key="SearchOptionPadding">8,3</Thickness>
     <Thickness x:Key="SearchPreviewHeaderPadding">10,5</Thickness>
@@ -165,9 +168,13 @@
     <x:String x:Key="ResetColumnsButtonText">既定に戻す</x:String>
     <x:String x:Key="ResetColumnsToolTip">列の表示・並び順・幅を既定の状態に戻します</x:String>
     <x:String x:Key="ColumnsContextMenuText">表示列</x:String>
-    <x:String x:Key="SaveSelectedToolTip">選択中のトラックを保存 (Ctrl+S)</x:String>
+    <x:String x:Key="SelectArtworkContextMenuText">アートワークを設定...</x:String>
+    <x:String x:Key="RemoveArtworkContextMenuText">アートワークを削除</x:String>
+    <x:String x:Key="SaveSelectedContextMenuText">選択トラックを保存 (Ctrl+S)</x:String>
+    <x:String x:Key="RevertSelectedContextMenuText">選択トラックの変更を破棄</x:String>
+    <x:String x:Key="SaveSelectedToolTip">選択中のトラックを保存（複数選択時は一括保存） (Ctrl+S)</x:String>
     <x:String x:Key="SaveAllToolTip">変更のあるすべてのトラックを保存 (Ctrl+Shift+S)</x:String>
-    <x:String x:Key="RevertSelectedToolTip">選択中のトラックの未保存変更を元に戻す</x:String>
+    <x:String x:Key="RevertSelectedToolTip">選択中のトラックの未保存変更を元に戻す（複数選択時は一括破棄）</x:String>
     <x:String x:Key="RevertAllToolTip">すべての未保存変更を元に戻す</x:String>
     <x:String x:Key="PasteTsvToolTip">クリップボードのタブ区切りテキストを選択セルから一括貼り付け (Ctrl+V)</x:String>
     <x:String x:Key="SearchReplaceToolTip">ファイル名・タグの検索および一括置換バーを表示 (Ctrl+F / Ctrl+H)</x:String>
@@ -201,9 +208,8 @@
     <x:String x:Key="FilterEmptyPlaceholderText">検索条件に一致するトラックがありません</x:String>
     <x:String x:Key="SelectArtworkButtonText">画像を選択...</x:String>
     <x:String x:Key="RemoveArtworkButtonText">削除</x:String>
-    <x:String x:Key="SelectArtworkToolTip">ローカル画像ファイルからアートワークを設定（JPEG/PNG以外も自動変換）</x:String>
-    <x:String x:Key="RemoveArtworkToolTip">選択中トラックのアートワークを削除</x:String>
-    <x:String x:Key="ArtworkDropActiveText">ここにドロップして設定</x:String>
+    <x:String x:Key="SelectArtworkToolTip">ローカル画像ファイルからアートワークを設定（複数選択時は一括適用・JPEG/PNG以外も自動変換）</x:String>
+    <x:String x:Key="RemoveArtworkToolTip">選択中トラックのアートワークを削除（複数選択時は一括削除）</x:String>
     <x:String x:Key="AddCustomTagButtonText">+ 追加</x:String>
     <x:String x:Key="RemoveCustomTagButtonText">×</x:String>
     <x:String x:Key="RemoveCustomTagToolTip">この独自タグを削除</x:String>
