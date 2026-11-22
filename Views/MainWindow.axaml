@@ -84,6 +84,27 @@
             <Setter Property="Background" Value="{DynamicResource SearchOptionCheckedBackgroundColor}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource SearchOptionCheckedBorderColor}"/>
         </Style>
+        <Style Selector="Button.inline-clear">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextColor}"/>
+            <Setter Property="Width" Value="{DynamicResource InlineClearButtonSize}"/>
+            <Setter Property="Height" Value="{DynamicResource InlineClearButtonSize}"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="{DynamicResource InlineClearButtonPadding}"/>
+            <Setter Property="Margin" Value="{DynamicResource InlineClearButtonMargin}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+            <Setter Property="FontSize" Value="{DynamicResource BodyFontSize}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="IsTabStop" Value="False"/>
+        </Style>
+        <Style Selector="Button.inline-clear:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource InlineClearButtonHoverBackgroundColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+        </Style>
         <Style Selector="TextBlock.preview-status">
             <Setter Property="Foreground" Value="{DynamicResource PreviewReadyTextColor}"/>
             <Setter Property="FontSize" Value="{DynamicResource LabelFontSize}"/>
@@ -158,6 +179,9 @@
                             </MenuFlyout>
                         </SplitButton.Flyout>
                     </SplitButton>
+                    <Button Content="{DynamicResource ClearTrackListButtonText}"
+                            Command="{Binding ClearTrackListCommand}"
+                            ToolTip.Tip="{DynamicResource ClearTrackListToolTip}"/>
 
                     <Border Width="{DynamicResource ToolbarSeparatorWidth}"
                             Height="{DynamicResource ToolbarSeparatorHeight}"
@@ -303,9 +327,20 @@
                                   MaxWidth="{StaticResource DetailPaneMaxWidth}"/>
             </Grid.ColumnDefinitions>
 
-            <!-- 左ペイン：FLACファイル一覧 -->
-            <Grid Grid.Column="0" RowDefinitions="Auto,*">
-                <!-- 検索・一括置換インラインバー（＋置換一覧プレビュー） -->
+            <!-- 左ペイン：検索バー・可変高さプレビュー・FLACファイル一覧 -->
+            <Grid Grid.Column="0"
+                  views:CollapsibleRowBehavior.RowIndex="1"
+                  views:CollapsibleRowBehavior.IsExpanded="{Binding SearchReplace.ShowPreviewPane}"
+                  views:CollapsibleRowBehavior.DefaultHeight="{StaticResource SearchPreviewDefaultHeight}"
+                  views:CollapsibleRowBehavior.ExpandedMinHeight="{StaticResource SearchPreviewMinHeight}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="0"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*" MinHeight="{StaticResource TrackListMinHeight}"/>
+                </Grid.RowDefinitions>
+
+                <!-- 検索・一括置換インラインバー本体 -->
                 <Border Grid.Row="0"
                         DataContext="{Binding SearchReplace}"
                         x:DataType="vm:SearchReplaceViewModel"
@@ -316,253 +351,284 @@
                     <Border.KeyBindings>
                         <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}"/>
                     </Border.KeyBindings>
-                    <StackPanel>
-                        <StackPanel Margin="{DynamicResource SearchBarPadding}"
-                                    Spacing="{DynamicResource SmallItemSpacing}">
-                            <!-- 検索行 -->
-                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
-                                  ColumnSpacing="{DynamicResource SmallItemSpacing}">
-                                <ToggleButton Grid.Column="0"
-                                              Content="{DynamicResource SearchToggleReplaceExpandText}"
+                    <StackPanel Margin="{DynamicResource SearchBarPadding}"
+                                Spacing="{DynamicResource SmallItemSpacing}">
+                        <!-- 検索行 -->
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+                              ColumnSpacing="{DynamicResource SmallItemSpacing}">
+                            <ToggleButton Grid.Column="0"
+                                          Content="{DynamicResource SearchToggleReplaceExpandText}"
+                                          Classes="search-option"
+                                          IsChecked="{Binding IsReplaceVisible, Mode=OneWay}"
+                                          Command="{Binding ToggleReplaceSectionCommand}"
+                                          ToolTip.Tip="{DynamicResource SearchToggleReplaceToolTip}"/>
+
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding SearchPattern, Mode=TwoWay}"
+                                     PlaceholderText="{DynamicResource SearchInputPlaceholder}"
+                                     MinWidth="{DynamicResource SearchInputMinWidth}"
+                                     Classes="editable-field"
+                                     Classes.error="{Binding HasPatternError}"
+                                     views:FocusBehavior.IsFocusRequested="{Binding IsSearchInputFocusRequested, Mode=TwoWay}">
+                                <TextBox.KeyBindings>
+                                    <KeyBinding Gesture="Enter" Command="{Binding FindNextCommand}"/>
+                                    <KeyBinding Gesture="Shift+Enter" Command="{Binding FindPreviousCommand}"/>
+                                </TextBox.KeyBindings>
+                                <TextBox.InnerRightContent>
+                                    <Button Content="{DynamicResource ClearSearchTextButtonText}"
+                                            Classes="inline-clear"
+                                            IsVisible="{Binding HasSearchPattern}"
+                                            Command="{Binding ClearSearchPatternCommand}"
+                                            ToolTip.Tip="{DynamicResource ClearSearchPatternToolTip}"/>
+                                </TextBox.InnerRightContent>
+                            </TextBox>
+
+                            <Button Grid.Column="2"
+                                    Content="{DynamicResource SearchPreviousButtonText}"
+                                    Command="{Binding FindPreviousCommand}"
+                                    Width="{DynamicResource SearchNavButtonWidth}"
+                                    MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                    Padding="{DynamicResource CompactButtonPadding}"
+                                    HorizontalContentAlignment="Center"
+                                    ToolTip.Tip="{DynamicResource SearchPreviousToolTip}"/>
+
+                            <Button Grid.Column="3"
+                                    Content="{DynamicResource SearchNextButtonText}"
+                                    Command="{Binding FindNextCommand}"
+                                    Width="{DynamicResource SearchNavButtonWidth}"
+                                    MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                    Padding="{DynamicResource CompactButtonPadding}"
+                                    HorizontalContentAlignment="Center"
+                                    ToolTip.Tip="{DynamicResource SearchNextToolTip}"/>
+
+                            <Button Grid.Column="4"
+                                    Content="{DynamicResource SearchCloseButtonText}"
+                                    Command="{Binding CloseCommand}"
+                                    Width="{DynamicResource SearchCloseButtonWidth}"
+                                    MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                    Padding="{DynamicResource CompactButtonPadding}"
+                                    HorizontalContentAlignment="Center"
+                                    ToolTip.Tip="{DynamicResource SearchCloseToolTip}"/>
+                        </Grid>
+
+                        <!-- 置換行 -->
+                        <Grid IsVisible="{Binding IsReplaceVisible}"
+                              ColumnDefinitions="*,Auto,Auto"
+                              ColumnSpacing="{DynamicResource SmallItemSpacing}">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding ReplacementText, Mode=TwoWay}"
+                                     PlaceholderText="{DynamicResource ReplaceInputPlaceholder}"
+                                     MinWidth="{DynamicResource SearchInputMinWidth}"
+                                     Classes="editable-field"
+                                     views:FocusBehavior.IsFocusRequested="{Binding IsReplaceInputFocusRequested, Mode=TwoWay}">
+                                <TextBox.InnerRightContent>
+                                    <Button Content="{DynamicResource ClearSearchTextButtonText}"
+                                            Classes="inline-clear"
+                                            IsVisible="{Binding HasReplacementText}"
+                                            Command="{Binding ClearReplacementTextCommand}"
+                                            ToolTip.Tip="{DynamicResource ClearReplacementTextToolTip}"/>
+                                </TextBox.InnerRightContent>
+                            </TextBox>
+
+                            <Button Grid.Column="1"
+                                    Content="{DynamicResource SearchReplaceSelectedText}"
+                                    Command="{Binding ReplaceSelectedCommand}"
+                                    Padding="{DynamicResource SearchOptionPadding}"
+                                    MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                    FontSize="{DynamicResource LabelFontSize}"
+                                    ToolTip.Tip="{DynamicResource SearchReplaceSelectedToolTip}"/>
+
+                            <Button Grid.Column="2"
+                                    Content="{DynamicResource SearchReplaceAllText}"
+                                    Command="{Binding ReplaceAllCommand}"
+                                    Padding="{DynamicResource SearchOptionPadding}"
+                                    MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                    FontSize="{DynamicResource LabelFontSize}"
+                                    ToolTip.Tip="{DynamicResource SearchReplaceAllToolTip}"/>
+                        </Grid>
+
+                        <!-- オプション・一致件数行（狭幅時は自動折り返し） -->
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="{DynamicResource DetailItemSpacing}">
+                            <WrapPanel Grid.Column="0"
+                                       Orientation="Horizontal"
+                                       ItemSpacing="{DynamicResource SmallItemSpacing}"
+                                       LineSpacing="{DynamicResource SmallItemSpacing}">
+                                <ComboBox ItemsSource="{Binding TargetOptions}"
+                                          SelectedItem="{Binding SelectedTargetOption, Mode=TwoWay}"
+                                          Width="{DynamicResource SearchTargetComboWidth}"
+                                          FontSize="{DynamicResource LabelFontSize}"
+                                          VerticalAlignment="Center"
+                                          ToolTip.Tip="{DynamicResource SearchTargetComboToolTip}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:SearchReplaceTargetOption">
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <ToggleButton Content="{DynamicResource SearchRegexButtonText}"
                                               Classes="search-option"
-                                              IsChecked="{Binding IsReplaceVisible, Mode=OneWay}"
-                                              Command="{Binding ToggleReplaceSectionCommand}"
-                                              ToolTip.Tip="{DynamicResource SearchToggleReplaceToolTip}"/>
+                                              IsChecked="{Binding UseRegex, Mode=TwoWay}"
+                                              ToolTip.Tip="{DynamicResource SearchRegexToolTip}"/>
 
-                                <TextBox Grid.Column="1"
-                                         Text="{Binding SearchPattern, Mode=TwoWay}"
-                                         PlaceholderText="{DynamicResource SearchInputPlaceholder}"
-                                         MinWidth="{DynamicResource SearchInputMinWidth}"
-                                         Classes="editable-field"
-                                         Classes.error="{Binding HasPatternError}"
-                                         views:FocusBehavior.IsFocusRequested="{Binding IsSearchInputFocusRequested, Mode=TwoWay}">
-                                    <TextBox.KeyBindings>
-                                        <KeyBinding Gesture="Enter" Command="{Binding FindNextCommand}"/>
-                                        <KeyBinding Gesture="Shift+Enter" Command="{Binding FindPreviousCommand}"/>
-                                    </TextBox.KeyBindings>
-                                </TextBox>
+                                <ToggleButton Content="{DynamicResource SearchCaseButtonText}"
+                                              Classes="search-option"
+                                              IsChecked="{Binding IsCaseSensitive, Mode=TwoWay}"
+                                              ToolTip.Tip="{DynamicResource SearchCaseToolTip}"/>
 
-                                <Button Grid.Column="2"
-                                        Content="{DynamicResource SearchPreviousButtonText}"
-                                        Command="{Binding FindPreviousCommand}"
-                                        Width="{DynamicResource SearchNavButtonWidth}"
-                                        MinHeight="{DynamicResource CompactButtonMinHeight}"
-                                        Padding="{DynamicResource CompactButtonPadding}"
-                                        HorizontalContentAlignment="Center"
-                                        ToolTip.Tip="{DynamicResource SearchPreviousToolTip}"/>
+                                <ToggleButton Content="{DynamicResource SearchFilterButtonText}"
+                                              Classes="search-option"
+                                              IsChecked="{Binding FilterMatchingOnly, Mode=TwoWay}"
+                                              ToolTip.Tip="{DynamicResource SearchFilterToolTip}"/>
 
-                                <Button Grid.Column="3"
-                                        Content="{DynamicResource SearchNextButtonText}"
-                                        Command="{Binding FindNextCommand}"
-                                        Width="{DynamicResource SearchNavButtonWidth}"
-                                        MinHeight="{DynamicResource CompactButtonMinHeight}"
-                                        Padding="{DynamicResource CompactButtonPadding}"
-                                        HorizontalContentAlignment="Center"
-                                        ToolTip.Tip="{DynamicResource SearchNextToolTip}"/>
+                                <CheckBox Content="{DynamicResource SearchPreserveExtensionText}"
+                                          IsVisible="{Binding IsReplaceVisible}"
+                                          IsChecked="{Binding PreserveFileExtension, Mode=TwoWay}"
+                                          IsEnabled="{Binding ShowPreserveExtensionOption}"
+                                          FontSize="{DynamicResource LabelFontSize}"
+                                          VerticalAlignment="Center"
+                                          ToolTip.Tip="{DynamicResource SearchPreserveExtensionToolTip}"/>
 
-                                <Button Grid.Column="4"
-                                        Content="{DynamicResource SearchCloseButtonText}"
-                                        Command="{Binding CloseCommand}"
-                                        Width="{DynamicResource SearchCloseButtonWidth}"
-                                        MinHeight="{DynamicResource CompactButtonMinHeight}"
-                                        Padding="{DynamicResource CompactButtonPadding}"
-                                        HorizontalContentAlignment="Center"
-                                        ToolTip.Tip="{DynamicResource SearchCloseToolTip}"/>
-                            </Grid>
-
-                            <!-- 置換行 -->
-                            <Grid IsVisible="{Binding IsReplaceVisible}"
-                                  ColumnDefinitions="*,Auto,Auto"
-                                  ColumnSpacing="{DynamicResource SmallItemSpacing}">
-                                <TextBox Grid.Column="0"
-                                         Text="{Binding ReplacementText, Mode=TwoWay}"
-                                         PlaceholderText="{DynamicResource ReplaceInputPlaceholder}"
-                                         MinWidth="{DynamicResource SearchInputMinWidth}"
-                                         Classes="editable-field"
-                                         views:FocusBehavior.IsFocusRequested="{Binding IsReplaceInputFocusRequested, Mode=TwoWay}"/>
-
-                                <Button Grid.Column="1"
-                                        Content="{DynamicResource SearchReplaceSelectedText}"
-                                        Command="{Binding ReplaceSelectedCommand}"
-                                        Padding="{DynamicResource SearchOptionPadding}"
-                                        MinHeight="{DynamicResource CompactButtonMinHeight}"
-                                        FontSize="{DynamicResource LabelFontSize}"
-                                        ToolTip.Tip="{DynamicResource SearchReplaceSelectedToolTip}"/>
-
-                                <Button Grid.Column="2"
-                                        Content="{DynamicResource SearchReplaceAllText}"
-                                        Command="{Binding ReplaceAllCommand}"
-                                        Padding="{DynamicResource SearchOptionPadding}"
-                                        MinHeight="{DynamicResource CompactButtonMinHeight}"
-                                        FontSize="{DynamicResource LabelFontSize}"
-                                        ToolTip.Tip="{DynamicResource SearchReplaceAllToolTip}"/>
-                            </Grid>
-
-                            <!-- オプション・一致件数行（狭幅時は自動折り返し） -->
-                            <Grid ColumnDefinitions="*,Auto"
-                                  ColumnSpacing="{DynamicResource DetailItemSpacing}">
-                                <WrapPanel Grid.Column="0"
-                                           Orientation="Horizontal"
-                                           ItemSpacing="{DynamicResource SmallItemSpacing}"
-                                           LineSpacing="{DynamicResource SmallItemSpacing}">
-                                    <ComboBox ItemsSource="{Binding TargetOptions}"
-                                              SelectedItem="{Binding SelectedTargetOption, Mode=TwoWay}"
-                                              Width="{DynamicResource SearchTargetComboWidth}"
-                                              FontSize="{DynamicResource LabelFontSize}"
-                                              VerticalAlignment="Center"
-                                              ToolTip.Tip="{DynamicResource SearchTargetComboToolTip}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate x:DataType="models:SearchReplaceTargetOption">
-                                                <TextBlock Text="{Binding DisplayName}"/>
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-
-                                    <ToggleButton Content="{DynamicResource SearchRegexButtonText}"
-                                                  Classes="search-option"
-                                                  IsChecked="{Binding UseRegex, Mode=TwoWay}"
-                                                  ToolTip.Tip="{DynamicResource SearchRegexToolTip}"/>
-
-                                    <ToggleButton Content="{DynamicResource SearchCaseButtonText}"
-                                                  Classes="search-option"
-                                                  IsChecked="{Binding IsCaseSensitive, Mode=TwoWay}"
-                                                  ToolTip.Tip="{DynamicResource SearchCaseToolTip}"/>
-
-                                    <ToggleButton Content="{DynamicResource SearchFilterButtonText}"
-                                                  Classes="search-option"
-                                                  IsChecked="{Binding FilterMatchingOnly, Mode=TwoWay}"
-                                                  ToolTip.Tip="{DynamicResource SearchFilterToolTip}"/>
-
-                                    <CheckBox Content="{DynamicResource SearchPreserveExtensionText}"
+                                <ToggleButton Content="{DynamicResource SearchPreviewToggleText}"
                                               IsVisible="{Binding IsReplaceVisible}"
-                                              IsChecked="{Binding PreserveFileExtension, Mode=TwoWay}"
-                                              IsEnabled="{Binding ShowPreserveExtensionOption}"
-                                              FontSize="{DynamicResource LabelFontSize}"
-                                              VerticalAlignment="Center"
-                                              ToolTip.Tip="{DynamicResource SearchPreserveExtensionToolTip}"/>
+                                              Classes="search-option"
+                                              IsChecked="{Binding IsPreviewVisible, Mode=OneWay}"
+                                              Command="{Binding TogglePreviewCommand}"
+                                              ToolTip.Tip="{DynamicResource SearchPreviewToggleToolTip}"/>
+                            </WrapPanel>
 
-                                    <ToggleButton Content="{DynamicResource SearchPreviewToggleText}"
-                                                  IsVisible="{Binding IsReplaceVisible}"
-                                                  Classes="search-option"
-                                                  IsChecked="{Binding IsPreviewVisible, Mode=OneWay}"
-                                                  Command="{Binding TogglePreviewCommand}"
-                                                  ToolTip.Tip="{DynamicResource SearchPreviewToggleToolTip}"/>
-                                </WrapPanel>
-
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding MatchSummaryText}"
-                                           Foreground="{DynamicResource SecondaryTextColor}"
-                                           FontSize="{DynamicResource LabelFontSize}"
-                                           VerticalAlignment="Center"
-                                           HorizontalAlignment="Right"
-                                           TextAlignment="Right"/>
-                            </Grid>
-
-                            <!-- パターン構文・タイムアウトエラー -->
-                            <TextBlock Text="{Binding PatternError}"
-                                       IsVisible="{Binding HasPatternError}"
-                                       Foreground="{DynamicResource ErrorTextColor}"
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding MatchSummaryText}"
+                                       Foreground="{DynamicResource SecondaryTextColor}"
                                        FontSize="{DynamicResource LabelFontSize}"
-                                       TextWrapping="Wrap"/>
-                        </StackPanel>
+                                       VerticalAlignment="Center"
+                                       HorizontalAlignment="Right"
+                                       TextAlignment="Right"/>
+                        </Grid>
 
-                        <!-- 置換一覧プレビュー -->
-                        <Border IsVisible="{Binding ShowPreviewPane}"
-                                Background="{DynamicResource SearchPreviewBackgroundColor}"
-                                BorderBrush="{DynamicResource SearchPreviewBorderColor}"
-                                BorderThickness="{DynamicResource SearchPreviewBorderThickness}">
-                            <StackPanel>
-                                <Border Background="{DynamicResource SearchPreviewHeaderBackgroundColor}"
-                                        BorderBrush="{DynamicResource SearchPreviewBorderColor}"
-                                        BorderThickness="{DynamicResource BottomBorderThickness}"
-                                        Padding="{DynamicResource SearchPreviewHeaderPadding}">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Grid.Column="0"
-                                                   Text="{Binding PreviewSummaryText}"
-                                                   Foreground="{DynamicResource TextColor}"
-                                                   FontSize="{DynamicResource LabelFontSize}"
-                                                   FontWeight="SemiBold"
-                                                   VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{DynamicResource SearchPreviewHintText}"
-                                                   Foreground="{DynamicResource SecondaryTextColor}"
-                                                   FontSize="{DynamicResource LabelFontSize}"
-                                                   VerticalAlignment="Center"/>
-                                    </Grid>
-                                </Border>
-
-                                <TextBlock Text="{DynamicResource SearchPreviewEmptyText}"
-                                           IsVisible="{Binding !HasPreviewItems}"
-                                           Foreground="{DynamicResource SecondaryTextColor}"
-                                           FontSize="{DynamicResource LabelFontSize}"
-                                           Padding="{DynamicResource SearchPreviewEmptyPadding}"
-                                           HorizontalAlignment="Center"/>
-
-                                <DataGrid IsVisible="{Binding HasPreviewItems}"
-                                          Classes="search-preview-grid"
-                                          ItemsSource="{Binding PreviewItems}"
-                                          SelectedItem="{Binding SelectedPreviewItem, Mode=TwoWay}"
-                                          MaxHeight="{DynamicResource SearchPreviewMaxHeight}"
-                                          AutoGenerateColumns="False"
-                                          IsReadOnly="True"
-                                          CanUserReorderColumns="False"
-                                          CanUserResizeColumns="True"
-                                          CanUserSortColumns="True"
-                                          HorizontalScrollBarVisibility="Auto"
-                                          VerticalScrollBarVisibility="Auto"
-                                          GridLinesVisibility="Horizontal"
-                                          HorizontalGridLinesBrush="{DynamicResource SearchPreviewGridLinesColor}"
-                                          SelectionMode="Single"
-                                          Background="{DynamicResource SearchPreviewBackgroundColor}">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="トラック"
-                                                            Binding="{Binding TrackDisplayName}"
-                                                            SortMemberPath="TrackDisplayName"
-                                                            Width="{StaticResource ColPreviewTrackWidth}"
-                                                            MinWidth="{StaticResource ColPreviewTrackMinWidth}"
-                                                            IsReadOnly="True"/>
-                                        <DataGridTextColumn Header="項目"
-                                                            Binding="{Binding FieldDisplayName}"
-                                                            SortMemberPath="FieldDisplayName"
-                                                            Width="{StaticResource ColPreviewFieldWidth}"
-                                                            MinWidth="{StaticResource ColPreviewFieldMinWidth}"
-                                                            IsReadOnly="True"/>
-                                        <DataGridTextColumn Header="置換前"
-                                                            Binding="{Binding BeforeValue}"
-                                                            SortMemberPath="BeforeValue"
-                                                            Width="{StaticResource ColPreviewBeforeWidth}"
-                                                            MinWidth="{StaticResource ColPreviewValueMinWidth}"
-                                                            IsReadOnly="True"/>
-                                        <DataGridTextColumn Header="置換後"
-                                                            Binding="{Binding AfterValue}"
-                                                            SortMemberPath="AfterValue"
-                                                            Width="{StaticResource ColPreviewAfterWidth}"
-                                                            MinWidth="{StaticResource ColPreviewValueMinWidth}"
-                                                            IsReadOnly="True"/>
-                                        <DataGridTemplateColumn Header="状態"
-                                                                SortMemberPath="StatusDisplay"
-                                                                Width="{StaticResource ColPreviewStatusWidth}"
-                                                                MinWidth="{StaticResource ColPreviewStatusMinWidth}"
-                                                                IsReadOnly="True">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate x:DataType="models:SearchReplacePreviewItem">
-                                                    <TextBlock Text="{Binding StatusDisplay}"
-                                                               ToolTip.Tip="{Binding StatusDisplay}"
-                                                               Classes="preview-status"
-                                                               Classes.warning="{Binding HasWarning}"
-                                                               Margin="{DynamicResource CompactButtonPadding}"/>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </StackPanel>
-                        </Border>
+                        <!-- パターン構文・タイムアウトエラー -->
+                        <TextBlock Text="{Binding PatternError}"
+                                   IsVisible="{Binding HasPatternError}"
+                                   Foreground="{DynamicResource ErrorTextColor}"
+                                   FontSize="{DynamicResource LabelFontSize}"
+                                   TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
 
+                <!-- 置換一覧プレビュー（高さ可変） -->
+                <Border Grid.Row="1"
+                        DataContext="{Binding SearchReplace}"
+                        x:DataType="vm:SearchReplaceViewModel"
+                        IsVisible="{Binding ShowPreviewPane}"
+                        Background="{DynamicResource SearchPreviewBackgroundColor}"
+                        BorderBrush="{DynamicResource SearchPreviewBorderColor}"
+                        BorderThickness="{DynamicResource SearchPreviewBorderThickness}">
+                    <Border.KeyBindings>
+                        <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}"/>
+                    </Border.KeyBindings>
+                    <Grid RowDefinitions="Auto,*">
+                        <Border Grid.Row="0"
+                                Background="{DynamicResource SearchPreviewHeaderBackgroundColor}"
+                                BorderBrush="{DynamicResource SearchPreviewBorderColor}"
+                                BorderThickness="{DynamicResource BottomBorderThickness}"
+                                Padding="{DynamicResource SearchPreviewHeaderPadding}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding PreviewSummaryText}"
+                                           Foreground="{DynamicResource TextColor}"
+                                           FontSize="{DynamicResource LabelFontSize}"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{DynamicResource SearchPreviewHintText}"
+                                           Foreground="{DynamicResource SecondaryTextColor}"
+                                           FontSize="{DynamicResource LabelFontSize}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <Grid Grid.Row="1">
+                            <TextBlock Text="{DynamicResource SearchPreviewEmptyText}"
+                                       IsVisible="{Binding !HasPreviewItems}"
+                                       Foreground="{DynamicResource SecondaryTextColor}"
+                                       FontSize="{DynamicResource LabelFontSize}"
+                                       Padding="{DynamicResource SearchPreviewEmptyPadding}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+
+                            <DataGrid IsVisible="{Binding HasPreviewItems}"
+                                      Classes="search-preview-grid"
+                                      ItemsSource="{Binding PreviewItems}"
+                                      SelectedItem="{Binding SelectedPreviewItem, Mode=TwoWay}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      CanUserReorderColumns="False"
+                                      CanUserResizeColumns="True"
+                                      CanUserSortColumns="True"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Auto"
+                                      GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="{DynamicResource SearchPreviewGridLinesColor}"
+                                      SelectionMode="Single"
+                                      Background="{DynamicResource SearchPreviewBackgroundColor}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="トラック"
+                                                        Binding="{Binding TrackDisplayName}"
+                                                        SortMemberPath="TrackDisplayName"
+                                                        Width="{StaticResource ColPreviewTrackWidth}"
+                                                        MinWidth="{StaticResource ColPreviewTrackMinWidth}"
+                                                        IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="項目"
+                                                        Binding="{Binding FieldDisplayName}"
+                                                        SortMemberPath="FieldDisplayName"
+                                                        Width="{StaticResource ColPreviewFieldWidth}"
+                                                        MinWidth="{StaticResource ColPreviewFieldMinWidth}"
+                                                        IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="置換前"
+                                                        Binding="{Binding BeforeValue}"
+                                                        SortMemberPath="BeforeValue"
+                                                        Width="{StaticResource ColPreviewBeforeWidth}"
+                                                        MinWidth="{StaticResource ColPreviewValueMinWidth}"
+                                                        IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="置換後"
+                                                        Binding="{Binding AfterValue}"
+                                                        SortMemberPath="AfterValue"
+                                                        Width="{StaticResource ColPreviewAfterWidth}"
+                                                        MinWidth="{StaticResource ColPreviewValueMinWidth}"
+                                                        IsReadOnly="True"/>
+                                    <DataGridTemplateColumn Header="状態"
+                                                            SortMemberPath="StatusDisplay"
+                                                            Width="{StaticResource ColPreviewStatusWidth}"
+                                                            MinWidth="{StaticResource ColPreviewStatusMinWidth}"
+                                                            IsReadOnly="True">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate x:DataType="models:SearchReplacePreviewItem">
+                                                <TextBlock Text="{Binding StatusDisplay}"
+                                                           ToolTip.Tip="{Binding StatusDisplay}"
+                                                           Classes="preview-status"
+                                                           Classes.warning="{Binding HasWarning}"
+                                                           Margin="{DynamicResource CompactButtonPadding}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- プレビュー欄リサイズ用水平スプリッター -->
+                <GridSplitter Grid.Row="2"
+                              IsVisible="{Binding SearchReplace.ShowPreviewPane}"
+                              Height="{DynamicResource SplitterWidth}"
+                              Background="{DynamicResource SplitterColor}"
+                              ResizeDirection="Rows"
+                              ResizeBehavior="PreviousAndNext"
+                              ToolTip.Tip="{DynamicResource SearchPreviewSplitterToolTip}"/>
+
                 <!-- トラック一覧 DataGrid -->
-                <Grid Grid.Row="1">
+                <Grid Grid.Row="3">
                     <DataGrid x:Name="TracksDataGrid"
                               ItemsSource="{Binding DisplayedTracks}"
                               SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
@@ -606,6 +672,9 @@
                             </MenuItem>
                             <MenuItem Header="{DynamicResource ResetColumnsButtonText}"
                                       Command="{Binding ColumnSettings.ResetColumnsCommand}"/>
+                            <Separator/>
+                            <MenuItem Header="{DynamicResource ClearTrackListContextMenuText}"
+                                      Command="{Binding ClearTrackListCommand}"/>
                         </ContextMenu>
                     </DataGrid.ContextMenu>
                     <DataGrid.Columns>
@@ -622,6 +691,24 @@
                                                FontSize="{DynamicResource BodyFontSize}"
                                                HorizontalAlignment="Center"
                                                VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="{StaticResource ColArtworkHeaderText}"
+                                                Width="{StaticResource ColArtworkWidth}"
+                                                IsReadOnly="True"
+                                                CanUserResize="False"
+                                                views:DataGridPasteBehavior.ColumnKind="Artwork"
+                                                SortMemberPath="HasArtworkData">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="vm:TrackItemViewModel">
+                                    <TextBlock Text="{Binding ArtworkIndicator}"
+                                               IsVisible="{Binding HasArtworkData}"
+                                               Foreground="{DynamicResource ArtworkIndicatorColor}"
+                                               FontSize="{DynamicResource BodyFontSize}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               ToolTip.Tip="{DynamicResource ArtworkIndicatorToolTip}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

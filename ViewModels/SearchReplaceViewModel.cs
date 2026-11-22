@@ -30,6 +30,7 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
     private readonly Action<string> _onReplaceApplied;
 
     private readonly HashSet<string> _matchingTrackPaths = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isResetting;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFilterActive))]
@@ -44,11 +45,15 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
     private bool _isPreviewVisible;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSearchPattern))]
     [NotifyPropertyChangedFor(nameof(HasValidPattern))]
     [NotifyPropertyChangedFor(nameof(IsFilterActive))]
+    [NotifyCanExecuteChangedFor(nameof(ClearSearchPatternCommand))]
     private string _searchPattern = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasReplacementText))]
+    [NotifyCanExecuteChangedFor(nameof(ClearReplacementTextCommand))]
     private string _replacementText = string.Empty;
 
     [ObservableProperty]
@@ -66,7 +71,7 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsFilterActive))]
-    private bool _filterMatchingOnly;
+    private bool _filterMatchingOnly = true;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasPatternError))]
@@ -133,6 +138,10 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
     public IReadOnlyList<SearchReplaceTargetOption> TargetOptions { get; }
 
     public ObservableCollection<SearchReplacePreviewItem> PreviewItems { get; } = new();
+
+    public bool HasSearchPattern => !string.IsNullOrEmpty(SearchPattern);
+
+    public bool HasReplacementText => !string.IsNullOrEmpty(ReplacementText);
 
     public bool HasPatternError => !string.IsNullOrEmpty(PatternError);
 
@@ -305,6 +314,28 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
         TogglePreviewCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>
+    /// 一覧クリア時に検索・置換バーを閉じ、フィルタ設定を既定（ON）へ戻して入力文字列・検索結果をリセットする。
+    /// </summary>
+    public void ResetForClearedTracks()
+    {
+        _isResetting = true;
+        try
+        {
+            IsOpen = false;
+            IsPreviewVisible = false;
+            FilterMatchingOnly = true;
+            SearchPattern = string.Empty;
+            ReplacementText = string.Empty;
+        }
+        finally
+        {
+            _isResetting = false;
+        }
+
+        RefreshResults(notifyFilter: false);
+    }
+
     [RelayCommand]
     private void OpenFind()
     {
@@ -318,6 +349,7 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
     {
         IsOpen = true;
         IsReplaceVisible = true;
+        AutoEnablePreviewIfReplacementTextExists();
         RefreshResults(notifyFilter: true);
         if (string.IsNullOrEmpty(SearchPattern))
         {
@@ -340,6 +372,7 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
 
         IsOpen = true;
         IsReplaceVisible = true;
+        AutoEnablePreviewIfReplacementTextExists();
         RefreshResults(notifyFilter: true);
         RequestSearchFocus();
     }
@@ -352,14 +385,43 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
             return;
         }
 
-        IsOpen = false;
-        IsPreviewVisible = false;
-        if (FilterMatchingOnly)
+        _isResetting = true;
+        try
         {
-            FilterMatchingOnly = false;
+            IsOpen = false;
+            IsPreviewVisible = false;
+            FilterMatchingOnly = true;
+        }
+        finally
+        {
+            _isResetting = false;
         }
 
         RefreshResults(notifyFilter: true);
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSearchPattern))]
+    private void ClearSearchPattern()
+    {
+        if (string.IsNullOrEmpty(SearchPattern))
+        {
+            return;
+        }
+
+        SearchPattern = string.Empty;
+        RequestSearchFocus();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasReplacementText))]
+    private void ClearReplacementText()
+    {
+        if (string.IsNullOrEmpty(ReplacementText))
+        {
+            return;
+        }
+
+        ReplacementText = string.Empty;
+        RequestReplaceFocus();
     }
 
     [RelayCommand]
@@ -369,6 +431,10 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
         if (!IsReplaceVisible)
         {
             IsPreviewVisible = false;
+        }
+        else
+        {
+            AutoEnablePreviewIfReplacementTextExists();
         }
 
         RefreshResults(notifyFilter: false);
@@ -423,15 +489,34 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
             return;
         }
 
+        if (_isResetting)
+        {
+            return;
+        }
+
         RefreshResults(notifyFilter: true);
     }
 
-    partial void OnReplacementTextChanged(string value)
+    partial void OnReplacementTextChanged(string? oldValue, string newValue)
     {
-        if (value is null)
+        if (newValue is null)
         {
             ReplacementText = string.Empty;
             return;
+        }
+
+        if (_isResetting)
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(oldValue)
+            && !string.IsNullOrEmpty(newValue)
+            && IsOpen
+            && IsReplaceVisible
+            && !IsPreviewVisible)
+        {
+            IsPreviewVisible = true;
         }
 
         if (ShowPreviewPane)
@@ -468,6 +553,11 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
 
     partial void OnFilterMatchingOnlyChanged(bool value)
     {
+        if (_isResetting)
+        {
+            return;
+        }
+
         RefreshResults(notifyFilter: true);
     }
 
@@ -488,6 +578,14 @@ public sealed partial class SearchReplaceViewModel : ViewModelBase
         if (track is not null)
         {
             _selectTrack(track);
+        }
+    }
+
+    private void AutoEnablePreviewIfReplacementTextExists()
+    {
+        if (IsOpen && IsReplaceVisible && !string.IsNullOrEmpty(ReplacementText) && !IsPreviewVisible)
+        {
+            IsPreviewVisible = true;
         }
     }
 

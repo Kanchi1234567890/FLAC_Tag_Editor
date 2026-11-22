@@ -29,6 +29,14 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     private const string DuplicateFileNameErrorMessage = "同一フォルダ内に同名のファイルが重複しています。";
     private const string CloseWhileSavingMessage = "保存処理の完了後にウィンドウを閉じてください";
     private const string SaveWhileBusyMessage = "他の処理の完了後に再度お試しください";
+    private const string ClearedTracksStatusMessage = "一覧をクリアしました";
+
+    private enum UnsavedChangesPromptReason
+    {
+        ApplicationClose,
+        ReplaceTracks,
+        ClearTracks
+    }
 
     private readonly IFlacTagService? _flacTagService;
     private readonly IFileDialogService? _fileDialogService;
@@ -76,6 +84,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
     private bool _isLoading;
 
     [ObservableProperty]
@@ -92,6 +101,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
     private bool _isSaving;
 
     [ObservableProperty]
@@ -108,6 +118,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(RemoveArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(DropArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
     private bool _isArtworkLoading;
 
     [ObservableProperty]
@@ -263,6 +274,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     private bool CanPasteTsv => !IsBusy && HasTracks;
 
+    private bool CanClearTracks => !IsBusy && HasTracks;
+
     public async Task<bool> ConfirmCloseAsync()
     {
         if (IsSaving)
@@ -277,7 +290,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             return true;
         }
 
-        var canProceed = await ConfirmUnsavedChangesBeforeActionAsync(forApplicationClose: true);
+        var canProceed = await ConfirmUnsavedChangesBeforeActionAsync(UnsavedChangesPromptReason.ApplicationClose);
         if (!canProceed)
         {
             return false;
@@ -301,7 +314,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             return;
         }
 
-        if (!await ConfirmUnsavedChangesBeforeActionAsync(forApplicationClose: false))
+        if (!await ConfirmUnsavedChangesBeforeActionAsync(UnsavedChangesPromptReason.ReplaceTracks))
         {
             return;
         }
@@ -346,7 +359,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             return;
         }
 
-        if (!await ConfirmUnsavedChangesBeforeActionAsync(forApplicationClose: false))
+        if (!await ConfirmUnsavedChangesBeforeActionAsync(UnsavedChangesPromptReason.ReplaceTracks))
         {
             return;
         }
@@ -379,6 +392,27 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             ct => _flacTagService.LoadTracksFromFilesAsync(filePaths, ct),
             sourceLabel,
             TrackLoadMode.Append);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearTracks))]
+    private async Task ClearTrackListAsync()
+    {
+        if (!HasTracks || IsBusy)
+        {
+            return;
+        }
+
+        if (!await ConfirmUnsavedChangesBeforeActionAsync(UnsavedChangesPromptReason.ClearTracks))
+        {
+            return;
+        }
+
+        SearchReplace.ResetForClearedTracks();
+        ClearTracks();
+        CurrentSourcePath = string.Empty;
+        OnPropertyChanged(nameof(HasTracks));
+        RefreshDirtyState();
+        StatusMessage = ClearedTracksStatusMessage;
     }
 
     [RelayCommand(CanExecute = nameof(CanEditArtwork))]
@@ -774,7 +808,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         StatusMessage = $"{dirtyTracks.Count} 件の変更を破棄しました";
     }
 
-    private async Task<bool> ConfirmUnsavedChangesBeforeActionAsync(bool forApplicationClose)
+    private async Task<bool> ConfirmUnsavedChangesBeforeActionAsync(UnsavedChangesPromptReason reason)
     {
         if (!HasDirtyTracks || _dialogService is null)
         {
@@ -794,23 +828,33 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             warningMessage = "他の処理が実行中のため、いま保存することはできません。処理完了を待つか、変更を破棄して続行してください。";
         }
 
-        var context = forApplicationClose
-            ? new UnsavedChangesPromptContext(
+        var context = reason switch
+        {
+            UnsavedChangesPromptReason.ApplicationClose => new UnsavedChangesPromptContext(
                 Title: "未保存の変更があります",
                 Message: $"未保存の変更が {DirtyTrackCount} 件あります。アプリケーションを終了する前に保存しますか？",
                 WarningMessage: warningMessage,
                 SaveButtonText: "保存して終了",
                 DiscardButtonText: "破棄して終了",
                 CancelButtonText: "キャンセル",
-                CanSave: canSaveAll)
-            : new UnsavedChangesPromptContext(
+                CanSave: canSaveAll),
+            UnsavedChangesPromptReason.ClearTracks => new UnsavedChangesPromptContext(
+                Title: "未保存の変更があります",
+                Message: $"未保存の変更が {DirtyTrackCount} 件あります。一覧をクリアする前に保存しますか？",
+                WarningMessage: warningMessage,
+                SaveButtonText: "保存してクリア",
+                DiscardButtonText: "破棄してクリア",
+                CancelButtonText: "キャンセル",
+                CanSave: canSaveAll),
+            _ => new UnsavedChangesPromptContext(
                 Title: "未保存の変更があります",
                 Message: $"未保存の変更が {DirtyTrackCount} 件あります。一覧を置き換えて読み込み直す前に保存しますか？",
                 WarningMessage: warningMessage,
                 SaveButtonText: "保存して開く",
                 DiscardButtonText: "破棄して開く",
                 CancelButtonText: "キャンセル",
-                CanSave: canSaveAll);
+                CanSave: canSaveAll)
+        };
 
         var action = await _dialogService.ConfirmUnsavedChangesAsync(context);
         return action switch
@@ -1087,6 +1131,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         SaveAllCommand.NotifyCanExecuteChanged();
         RevertAllCommand.NotifyCanExecuteChanged();
         PasteTsvCommand.NotifyCanExecuteChanged();
+        ClearTrackListCommand.NotifyCanExecuteChanged();
         UpdateSelectionDerivedState();
         SearchReplace.NotifyCommandStates();
     }

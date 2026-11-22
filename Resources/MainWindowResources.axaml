@@ -35,6 +35,7 @@
     <SolidColorBrush x:Key="SecondaryTextColor" Color="#FFA6A6AE"/>
     <SolidColorBrush x:Key="SectionHeaderColor" Color="#FF78B7FF"/>
     <SolidColorBrush x:Key="DirtyIndicatorColor" Color="#FFFFC857"/>
+    <SolidColorBrush x:Key="ArtworkIndicatorColor" Color="#FF64B5F6"/>
     <SolidColorBrush x:Key="DirtyBannerBackgroundColor" Color="#33FFC857"/>
     <SolidColorBrush x:Key="DirtyBannerBorderColor" Color="#88FFC857"/>
     <SolidColorBrush x:Key="ErrorTextColor" Color="#FFFF6B6B"/>
@@ -51,6 +52,7 @@
     <SolidColorBrush x:Key="PreviewReadyTextColor" Color="#FF81C784"/>
     <SolidColorBrush x:Key="SearchOptionCheckedBackgroundColor" Color="#FF2B4C7E"/>
     <SolidColorBrush x:Key="SearchOptionCheckedBorderColor" Color="#FF78B7FF"/>
+    <SolidColorBrush x:Key="InlineClearButtonHoverBackgroundColor" Color="#33FFFFFF"/>
     <SolidColorBrush x:Key="SelectionBadgeBackgroundColor" Color="#3378B7FF"/>
     <SolidColorBrush x:Key="SelectionBadgeBorderColor" Color="#8878B7FF"/>
 
@@ -72,7 +74,10 @@
     <x:Double x:Key="SearchInputMinWidth">100</x:Double>
     <x:Double x:Key="SearchNavButtonWidth">28</x:Double>
     <x:Double x:Key="SearchCloseButtonWidth">28</x:Double>
-    <x:Double x:Key="SearchPreviewMaxHeight">200</x:Double>
+    <x:Double x:Key="InlineClearButtonSize">20</x:Double>
+    <x:Double x:Key="SearchPreviewDefaultHeight">280</x:Double>
+    <x:Double x:Key="SearchPreviewMinHeight">100</x:Double>
+    <x:Double x:Key="TrackListMinHeight">120</x:Double>
     <x:Double x:Key="ColPreviewTrackMinWidth">150</x:Double>
     <x:Double x:Key="ColPreviewFieldMinWidth">96</x:Double>
     <x:Double x:Key="ColPreviewValueMinWidth">200</x:Double>
@@ -86,6 +91,7 @@
 
     <!-- DataGrid Column Widths -->
     <DataGridLength x:Key="ColDirtyWidth">28</DataGridLength>
+    <DataGridLength x:Key="ColArtworkWidth">64</DataGridLength>
     <DataGridLength x:Key="ColTrackWidth">72</DataGridLength>
     <DataGridLength x:Key="ColTitleWidth">220</DataGridLength>
     <DataGridLength x:Key="ColArtistWidth">180</DataGridLength>
@@ -122,6 +128,8 @@
     <Thickness x:Key="SelectionBadgePadding">10,4</Thickness>
     <Thickness x:Key="SearchBarPadding">10,8</Thickness>
     <Thickness x:Key="SearchOptionPadding">8,3</Thickness>
+    <Thickness x:Key="InlineClearButtonMargin">0,0,4,0</Thickness>
+    <Thickness x:Key="InlineClearButtonPadding">0</Thickness>
     <Thickness x:Key="SearchPreviewHeaderPadding">10,5</Thickness>
     <Thickness x:Key="SearchPreviewEmptyPadding">10,12</Thickness>
     <Thickness x:Key="UnsavedDialogPadding">20</Thickness>
@@ -132,7 +140,7 @@
     <Thickness x:Key="ColumnChooserDividerMargin">0,6,0,6</Thickness>
     <Thickness x:Key="BottomBorderThickness">0,0,0,1</Thickness>
     <Thickness x:Key="TopBorderThickness">0,1,0,0</Thickness>
-    <Thickness x:Key="SearchPreviewBorderThickness">0,1,0,2</Thickness>
+    <Thickness x:Key="SearchPreviewBorderThickness">0,1,0,1</Thickness>
     <Thickness x:Key="ThinBorderThickness">1</Thickness>
     <Thickness x:Key="DropHighlightBorderThickness">2</Thickness>
     <CornerRadius x:Key="DefaultCornerRadius">4</CornerRadius>
@@ -155,6 +163,11 @@
     <x:String x:Key="AppendFolderMenuText">フォルダを追加読み込み...</x:String>
     <x:String x:Key="OpenFilesReplaceMenuText">ファイルを開く（置き換え）</x:String>
     <x:String x:Key="AppendFilesMenuText">ファイルを追加読み込み...</x:String>
+    <x:String x:Key="ClearTrackListButtonText">一覧をクリア</x:String>
+    <x:String x:Key="ClearTrackListToolTip">読み込まれているトラック一覧をすべてクリアします</x:String>
+    <x:String x:Key="ClearTrackListContextMenuText">一覧をクリア</x:String>
+    <x:String x:Key="ColArtworkHeaderText">Art</x:String>
+    <x:String x:Key="ArtworkIndicatorToolTip">アートワーク設定済み</x:String>
     <x:String x:Key="SaveSelectedButtonText">保存</x:String>
     <x:String x:Key="SaveAllButtonText">すべて保存</x:String>
     <x:String x:Key="RevertSelectedButtonText">変更を破棄</x:String>
@@ -195,6 +208,9 @@
     <x:String x:Key="SearchNextToolTip">次の一致トラックへ移動 (Enter)</x:String>
     <x:String x:Key="SearchCloseButtonText">×</x:String>
     <x:String x:Key="SearchCloseToolTip">検索・置換バーを閉じる (Esc)</x:String>
+    <x:String x:Key="ClearSearchTextButtonText">×</x:String>
+    <x:String x:Key="ClearSearchPatternToolTip">検索文字列をクリア</x:String>
+    <x:String x:Key="ClearReplacementTextToolTip">置換後の文字列をクリア</x:String>
     <x:String x:Key="SearchPreserveExtensionText">拡張子保護 (.flac)</x:String>
     <x:String x:Key="SearchPreserveExtensionToolTip">ファイル名置換時に .flac 拡張子を変更対象から除外</x:String>
     <x:String x:Key="SearchPreviewToggleText">プレビュー</x:String>
@@ -205,6 +221,7 @@
     <x:String x:Key="SearchReplaceAllToolTip">一致するすべてのトラックを一括置換（未保存状態へ反映）</x:String>
     <x:String x:Key="SearchPreviewEmptyText">現在の条件で変更が生じる項目はありません</x:String>
     <x:String x:Key="SearchPreviewHintText">行をクリックすると該当トラックを選択します</x:String>
+    <x:String x:Key="SearchPreviewSplitterToolTip">上下にドラッグしてプレビュー欄の高さを調整</x:String>
     <x:String x:Key="FilterEmptyPlaceholderText">検索条件に一致するトラックがありません</x:String>
     <x:String x:Key="SelectArtworkButtonText">画像を選択...</x:String>
     <x:String x:Key="RemoveArtworkButtonText">削除</x:String>
