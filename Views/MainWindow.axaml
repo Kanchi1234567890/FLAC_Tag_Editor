@@ -191,6 +191,43 @@
                                   IsChecked="{Binding SearchReplace.IsOpen, Mode=OneWay}"
                                   Command="{Binding SearchReplace.ToggleBarCommand}"
                                   ToolTip.Tip="{DynamicResource SearchReplaceToolTip}"/>
+                    <Button Content="{DynamicResource ColumnsButtonText}"
+                            ToolTip.Tip="{DynamicResource ColumnsButtonToolTip}">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedLeft">
+                                <StackPanel MinWidth="{DynamicResource ColumnChooserFlyoutMinWidth}"
+                                            Margin="{DynamicResource ColumnChooserFlyoutPadding}"
+                                            Spacing="{DynamicResource ColumnChooserItemSpacing}">
+                                    <TextBlock Text="{DynamicResource ColumnChooserTitleText}"
+                                               Foreground="{DynamicResource SectionHeaderColor}"
+                                               FontSize="{DynamicResource LabelFontSize}"
+                                               FontWeight="SemiBold"
+                                               Margin="{DynamicResource ColumnChooserHeaderMargin}"/>
+                                    <ItemsControl ItemsSource="{Binding ColumnSettings.ToggleableColumns}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:TrackGridColumnOptionViewModel">
+                                                <CheckBox Content="{Binding DisplayName}"
+                                                          IsChecked="{Binding IsVisible, Mode=TwoWay}"
+                                                          IsEnabled="{Binding CanToggle}"
+                                                          FontSize="{DynamicResource BodyFontSize}"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Border Height="{DynamicResource ColumnChooserDividerHeight}"
+                                            Background="{DynamicResource MainWindowBorderColor}"
+                                            Margin="{DynamicResource ColumnChooserDividerMargin}"/>
+                                    <Button Content="{DynamicResource ResetColumnsButtonText}"
+                                            Command="{Binding ColumnSettings.ResetColumnsCommand}"
+                                            ToolTip.Tip="{DynamicResource ResetColumnsToolTip}"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
+                                            MinHeight="{DynamicResource CompactButtonMinHeight}"
+                                            Padding="{DynamicResource CompactButtonPadding}"
+                                            FontSize="{DynamicResource LabelFontSize}"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
                 </StackPanel>
 
                 <TextBlock Grid.Column="1"
@@ -532,11 +569,26 @@
                               SelectionMode="Single"
                               Background="{DynamicResource MainWindowBackgroundColor}"
                               views:DataGridPasteBehavior.PasteCommand="{Binding PasteTsvCommand}"
-                              views:DataGridSelectionBehavior.ScrollSelectedItemIntoView="True">
+                              views:DataGridSelectionBehavior.ScrollSelectedItemIntoView="True"
+                              views:DataGridColumnSettingsBehavior.ColumnSettings="{Binding ColumnSettings}">
                     <DataGrid.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="{DynamicResource PasteTsvContextMenuText}"
                                       Command="{Binding #TracksDataGrid.(views:DataGridPasteBehavior.TriggerPasteCommand)}"/>
+                            <Separator/>
+                            <MenuItem Header="{DynamicResource ColumnsContextMenuText}"
+                                      ItemsSource="{Binding ColumnSettings.ToggleableColumns}">
+                                <MenuItem.ItemContainerTheme>
+                                    <ControlTheme TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}" x:DataType="vm:TrackGridColumnOptionViewModel">
+                                        <Setter Property="Header" Value="{Binding DisplayName}"/>
+                                        <Setter Property="ToggleType" Value="CheckBox"/>
+                                        <Setter Property="IsChecked" Value="{Binding IsVisible, Mode=TwoWay}"/>
+                                        <Setter Property="IsEnabled" Value="{Binding CanToggle}"/>
+                                    </ControlTheme>
+                                </MenuItem.ItemContainerTheme>
+                            </MenuItem>
+                            <MenuItem Header="{DynamicResource ResetColumnsButtonText}"
+                                      Command="{Binding ColumnSettings.ResetColumnsCommand}"/>
                         </ContextMenu>
                     </DataGrid.ContextMenu>
                     <DataGrid.Columns>
@@ -604,6 +656,27 @@
                                             views:DataGridPasteBehavior.ColumnKind="FileName"
                                             SortMemberPath="FileName"
                                             IsReadOnly="True"/>
+                        <DataGridTextColumn Header="ディスク"
+                                            Binding="{Binding DiscDisplay, Mode=TwoWay}"
+                                            Width="{StaticResource ColDiscWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="Disc"
+                                            SortMemberPath="DiscNumber"
+                                            IsVisible="False"
+                                            IsReadOnly="False"/>
+                        <DataGridTextColumn Header="ジャンル"
+                                            Binding="{Binding Genre, Mode=TwoWay}"
+                                            Width="{StaticResource ColGenreWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="Genre"
+                                            SortMemberPath="Genre"
+                                            IsVisible="False"
+                                            IsReadOnly="False"/>
+                        <DataGridTextColumn Header="コメント"
+                                            Binding="{Binding Comment, Mode=TwoWay}"
+                                            Width="{StaticResource ColCommentWidth}"
+                                            views:DataGridPasteBehavior.ColumnKind="Comment"
+                                            SortMemberPath="Comment"
+                                            IsVisible="False"
+                                            IsReadOnly="False"/>
                     </DataGrid.Columns>
                     </DataGrid>
 

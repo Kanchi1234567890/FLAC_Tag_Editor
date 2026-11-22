@@ -48,6 +48,7 @@ public partial class App : Application
         services.AddSingleton<IClipboardService, ClipboardService>();
         services.AddSingleton<ITsvPasteService, TsvPasteService>();
         services.AddSingleton<ITextSearchReplaceService, TextSearchReplaceService>();
+        services.AddSingleton<IAppSettingsService, AppSettingsService>();
 
         // ViewModels
         services.AddSingleton<MainWindowViewModel>();
@@ -58,6 +59,7 @@ public partial class App : Application
 
     private void OnDesktopExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
+        _serviceProvider?.GetService<MainWindowViewModel>()?.ColumnSettings.FlushPendingSaveSync();
         _serviceProvider?.Dispose();
         _serviceProvider = null;
     }

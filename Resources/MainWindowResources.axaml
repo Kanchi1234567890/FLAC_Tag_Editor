@@ -78,6 +78,9 @@
     <x:Double x:Key="UnsavedDialogWidth">460</x:Double>
     <x:Double x:Key="UnsavedDialogSectionSpacing">12</x:Double>
     <x:Double x:Key="UnsavedDialogLineHeight">20</x:Double>
+    <x:Double x:Key="ColumnChooserFlyoutMinWidth">200</x:Double>
+    <x:Double x:Key="ColumnChooserDividerHeight">1</x:Double>
+    <x:Double x:Key="ColumnChooserItemSpacing">4</x:Double>
 
     <!-- DataGrid Column Widths -->
     <DataGridLength x:Key="ColDirtyWidth">28</DataGridLength>
@@ -89,6 +92,9 @@
     <DataGridLength x:Key="ColYearWidth">64</DataGridLength>
     <DataGridLength x:Key="ColDurationWidth">76</DataGridLength>
     <DataGridLength x:Key="ColFileNameWidth">220</DataGridLength>
+    <DataGridLength x:Key="ColDiscWidth">72</DataGridLength>
+    <DataGridLength x:Key="ColGenreWidth">140</DataGridLength>
+    <DataGridLength x:Key="ColCommentWidth">220</DataGridLength>
     <DataGridLength x:Key="ColPreviewTrackWidth">Auto</DataGridLength>
     <DataGridLength x:Key="ColPreviewFieldWidth">Auto</DataGridLength>
     <DataGridLength x:Key="ColPreviewBeforeWidth">Auto</DataGridLength>
@@ -118,6 +124,9 @@
     <Thickness x:Key="UnsavedDialogPadding">20</Thickness>
     <Thickness x:Key="UnsavedDialogButtonsMargin">0,8,0,0</Thickness>
     <Thickness x:Key="UnsavedDialogButtonPadding">14,6</Thickness>
+    <Thickness x:Key="ColumnChooserFlyoutPadding">4</Thickness>
+    <Thickness x:Key="ColumnChooserHeaderMargin">0,0,0,4</Thickness>
+    <Thickness x:Key="ColumnChooserDividerMargin">0,6,0,6</Thickness>
     <Thickness x:Key="BottomBorderThickness">0,0,0,1</Thickness>
     <Thickness x:Key="TopBorderThickness">0,1,0,0</Thickness>
     <Thickness x:Key="SearchPreviewBorderThickness">0,1,0,2</Thickness>
@@ -150,6 +159,12 @@
     <x:String x:Key="PasteTsvButtonText">貼り付け</x:String>
     <x:String x:Key="PasteTsvContextMenuText">クリップボードから貼り付け (Ctrl+V)</x:String>
     <x:String x:Key="SearchReplaceButtonText">検索・置換</x:String>
+    <x:String x:Key="ColumnsButtonText">表示列</x:String>
+    <x:String x:Key="ColumnsButtonToolTip">一覧に表示する列の切り替え・並び順と列幅のリセット（settings.toml に自動保存）</x:String>
+    <x:String x:Key="ColumnChooserTitleText">表示する列</x:String>
+    <x:String x:Key="ResetColumnsButtonText">既定に戻す</x:String>
+    <x:String x:Key="ResetColumnsToolTip">列の表示・並び順・幅を既定の状態に戻します</x:String>
+    <x:String x:Key="ColumnsContextMenuText">表示列</x:String>
     <x:String x:Key="SaveSelectedToolTip">選択中のトラックを保存 (Ctrl+S)</x:String>
     <x:String x:Key="SaveAllToolTip">変更のあるすべてのトラックを保存 (Ctrl+Shift+S)</x:String>
     <x:String x:Key="RevertSelectedToolTip">選択中のトラックの未保存変更を元に戻す</x:String>

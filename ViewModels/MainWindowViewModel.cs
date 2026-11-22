@@ -25,18 +25,6 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     private const string DuplicateFileNameErrorMessage = "同一フォルダ内に同名のファイルが重複しています。";
     private const string CloseWhileSavingMessage = "保存処理の完了後にウィンドウを閉じてください";
     private const string SaveWhileBusyMessage = "他の処理の完了後に再度お試しください";
-    private static readonly TrackGridColumnKind[] DefaultGridColumns =
-    [
-        TrackGridColumnKind.Dirty,
-        TrackGridColumnKind.Track,
-        TrackGridColumnKind.Title,
-        TrackGridColumnKind.Artist,
-        TrackGridColumnKind.Album,
-        TrackGridColumnKind.AlbumArtist,
-        TrackGridColumnKind.Year,
-        TrackGridColumnKind.Duration,
-        TrackGridColumnKind.FileName
-    ];
 
     private readonly IFlacTagService? _flacTagService;
     private readonly IFileDialogService? _fileDialogService;
@@ -45,9 +33,11 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     private readonly IClipboardService? _clipboardService;
     private readonly ITsvPasteService? _tsvPasteService;
     private readonly ITextSearchReplaceService _textSearchReplaceService;
+    private readonly IAppSettingsService? _appSettingsService;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _saveCts;
     private CancellationTokenSource? _artworkCts;
+    private CancellationTokenSource? _settingsLoadCts;
     private bool _isUpdatingExternalValidation;
     private bool _disposed;
 
@@ -128,6 +118,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     {
         _textSearchReplaceService = new DesignTimeTextSearchReplaceService();
         SearchReplace = CreateSearchReplaceViewModel();
+        ColumnSettings = new TrackGridColumnSettingsViewModel();
 
         var sampleTrack = new FlacTrack
         {
@@ -174,7 +165,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         IArtworkService artworkService,
         IClipboardService clipboardService,
         ITsvPasteService tsvPasteService,
-        ITextSearchReplaceService textSearchReplaceService)
+        ITextSearchReplaceService textSearchReplaceService,
+        IAppSettingsService appSettingsService)
     {
         _flacTagService = flacTagService ?? throw new ArgumentNullException(nameof(flacTagService));
         _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
@@ -183,7 +175,11 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         _clipboardService = clipboardService ?? throw new ArgumentNullException(nameof(clipboardService));
         _tsvPasteService = tsvPasteService ?? throw new ArgumentNullException(nameof(tsvPasteService));
         _textSearchReplaceService = textSearchReplaceService ?? throw new ArgumentNullException(nameof(textSearchReplaceService));
+        _appSettingsService = appSettingsService ?? throw new ArgumentNullException(nameof(appSettingsService));
         SearchReplace = CreateSearchReplaceViewModel();
+        ColumnSettings = new TrackGridColumnSettingsViewModel(_appSettingsService, message => StatusMessage = message);
+        _settingsLoadCts = new CancellationTokenSource();
+        _ = ColumnSettings.LoadAsync(_settingsLoadCts.Token);
     }
 
     public ObservableCollection<TrackItemViewModel> Tracks { get; } = new();
@@ -191,6 +187,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     public ObservableCollection<TrackItemViewModel> DisplayedTracks { get; } = new();
 
     public SearchReplaceViewModel SearchReplace { get; }
+
+    public TrackGridColumnSettingsViewModel ColumnSettings { get; }
 
     public bool IsBusy => IsLoading || IsSaving || IsArtworkLoading;
 
@@ -1186,11 +1184,16 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
         else
         {
-            orderedColumns = DefaultGridColumns;
-            startColumnIndex = Array.FindIndex(DefaultGridColumns, kind => kind.IsEditable());
-            if (startColumnIndex < 0)
+            var visibleColumns = ColumnSettings.GetVisibleOrderedColumns();
+            orderedColumns = visibleColumns;
+            startColumnIndex = 0;
+            for (var i = 0; i < visibleColumns.Count; i++)
             {
-                startColumnIndex = 0;
+                if (visibleColumns[i].IsEditable())
+                {
+                    startColumnIndex = i;
+                    break;
+                }
             }
         }
 
@@ -1333,6 +1336,12 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         _artworkCts?.Cancel();
         _artworkCts?.Dispose();
         _artworkCts = null;
+
+        _settingsLoadCts?.Cancel();
+        _settingsLoadCts?.Dispose();
+        _settingsLoadCts = null;
+
+        ColumnSettings.Dispose();
 
         ClearTracks();
     }
