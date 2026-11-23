@@ -60,6 +60,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     private bool _hasAnySelectedDirtyTrack;
     private bool _hasAnySelectedValidDirtyTrack;
     private bool _hasAnySelectedArtworkTrack;
+    private bool _hasAnySelectedReplayGainTrack;
     private bool _hasMixedArtworkInSelection;
     private string _mixedArtworkNoticeText = string.Empty;
     private bool _disposed;
@@ -79,6 +80,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(SelectNextArtworkCommand))]
     [NotifyCanExecuteChangedFor(nameof(MoveArtworkLeftCommand))]
     [NotifyCanExecuteChangedFor(nameof(MoveArtworkRightCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CalculateReplayGainSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearSelectedReplayGainCommand))]
     private TrackItemViewModel? _selectedTrack;
 
     [ObservableProperty]
@@ -103,6 +106,10 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenCustomTagManagerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CalculateReplayGainCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CalculateReplayGainSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearSelectedReplayGainCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearAllReplayGainCommand))]
     private bool _isLoading;
 
     [ObservableProperty]
@@ -127,6 +134,10 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenCustomTagManagerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CalculateReplayGainCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CalculateReplayGainSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearSelectedReplayGainCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearAllReplayGainCommand))]
     private bool _isSaving;
 
     [ObservableProperty]
@@ -151,6 +162,10 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     [NotifyCanExecuteChangedFor(nameof(PasteTsvCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearTrackListCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenCustomTagManagerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CalculateReplayGainCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CalculateReplayGainSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearSelectedReplayGainCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ClearAllReplayGainCommand))]
     private bool _isArtworkLoading;
 
     [ObservableProperty]
@@ -367,6 +382,14 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     private bool CanClearTracks => !IsBusy && HasTracks;
 
+    private bool CanCalculateReplayGain => !IsBusy && HasTracks;
+
+    private bool CanCalculateReplayGainSelected => !IsBusy && _selectedTrackCount > 0;
+
+    private bool CanClearSelectedReplayGain => !IsBusy && _hasAnySelectedReplayGainTrack;
+
+    private bool CanClearAllReplayGain => !IsBusy && Tracks.Any(t => t.HasReplayGainTags);
+
     public async Task<bool> ConfirmCloseAsync()
     {
         if (IsSaving)
@@ -439,6 +462,248 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         else
         {
             StatusMessage = $"独自タグ定義を更新しました（{CustomTagCatalog.Definitions.Count} 件）";
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCalculateReplayGain))]
+    private async Task CalculateReplayGainAsync()
+    {
+        await OpenReplayGainDialogCoreAsync(preferSelectedTracks: HasMultipleSelectedTracks);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCalculateReplayGainSelected))]
+    private async Task CalculateReplayGainSelectedAsync()
+    {
+        await OpenReplayGainDialogCoreAsync(preferSelectedTracks: true);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearSelectedReplayGain))]
+    private async Task ClearSelectedReplayGainAsync()
+    {
+        var targets = GetSelectedTracksSnapshot();
+        await ClearReplayGainCoreAsync(targets, autoSave: false);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearAllReplayGain))]
+    private async Task ClearAllReplayGainAsync()
+    {
+        var targets = Tracks.ToList();
+        await ClearReplayGainCoreAsync(targets, autoSave: false);
+    }
+
+    private async Task OpenReplayGainDialogCoreAsync(bool preferSelectedTracks)
+    {
+        if (_dialogService is null || IsBusy || Tracks.Count == 0)
+        {
+            return;
+        }
+
+        var initialFfmpegPath = string.Empty;
+        if (_appSettingsService is not null)
+        {
+            try
+            {
+                var loadResult = await _appSettingsService.LoadAsync();
+                initialFfmpegPath = loadResult.Settings.ReplayGain?.FfmpegPath ?? string.Empty;
+            }
+            catch
+            {
+                // 設定読み込みエラー時は自動検出として続行
+            }
+        }
+
+        var allInputs = Tracks.Select(t => t.ToReplayGainInput()).ToList();
+        var selectedInputs = GetSelectedTracksSnapshot().Select(t => t.ToReplayGainInput()).ToList();
+
+        var context = new ReplayGainDialogContext(
+            AllTracks: allInputs,
+            SelectedTracks: selectedInputs,
+            PreferSelectedTracks: preferSelectedTracks,
+            InitialFfmpegPath: initialFfmpegPath);
+
+        var dialogResult = await _dialogService.ShowReplayGainAsync(context);
+        if (dialogResult is null)
+        {
+            return;
+        }
+
+        var tracksByPath = new Dictionary<string, TrackItemViewModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var track in Tracks)
+        {
+            tracksByPath.TryAdd(track.FilePath, track);
+        }
+
+        if (dialogResult.Action == ReplayGainDialogAction.ClearTags)
+        {
+            var clearTargets = new List<TrackItemViewModel>();
+            if (dialogResult.ClearTargetFilePaths is not null)
+            {
+                foreach (var path in dialogResult.ClearTargetFilePaths)
+                {
+                    if (tracksByPath.TryGetValue(path, out var target))
+                    {
+                        clearTargets.Add(target);
+                    }
+                }
+            }
+
+            await ClearReplayGainCoreAsync(clearTargets, autoSave: dialogResult.AutoSaveAfterApply);
+            return;
+        }
+
+        if (dialogResult.TrackResults.Count == 0)
+        {
+            return;
+        }
+
+        var updatedTracks = new List<TrackItemViewModel>(dialogResult.TrackResults.Count);
+        var changedCount = 0;
+
+        _isBatchUpdatingTracks = true;
+        try
+        {
+            foreach (var item in dialogResult.TrackResults)
+            {
+                if (!item.Succeeded || !tracksByPath.TryGetValue(item.FilePath, out var track))
+                {
+                    continue;
+                }
+
+                if (track.ApplyReplayGain(item))
+                {
+                    changedCount++;
+                }
+
+                updatedTracks.Add(track);
+            }
+        }
+        finally
+        {
+            _isBatchUpdatingTracks = false;
+        }
+
+        RefreshDirtyState();
+        SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
+        if (SearchReplace.IsOpen)
+        {
+            SearchReplace.RefreshResults(notifyFilter: true);
+        }
+
+        if (updatedTracks.Count == 0)
+        {
+            return;
+        }
+
+        if (dialogResult.AutoSaveAfterApply)
+        {
+            var savableDirtyTracks = updatedTracks
+                .Where(t => t.IsDirty && !t.HasValidationErrors)
+                .Distinct()
+                .ToList();
+            var invalidDirtyCount = updatedTracks.Count(t => t.IsDirty && t.HasValidationErrors);
+
+            if (savableDirtyTracks.Count > 0)
+            {
+                await SaveTracksCoreAsync(savableDirtyTracks, useSingleFileNameStatus: savableDirtyTracks.Count == 1);
+                if (invalidDirtyCount > 0)
+                {
+                    StatusMessage = $"{StatusMessage}（入力エラーのある {invalidDirtyCount} 件は未保存）";
+                }
+            }
+            else if (invalidDirtyCount > 0)
+            {
+                StatusMessage = $"ReplayGain を反映しましたが、入力エラーのある {invalidDirtyCount} 件は自動保存できませんでした（未保存）";
+            }
+            else
+            {
+                StatusMessage = "計算結果は既存の ReplayGain タグと同一でした（保存不要）";
+            }
+
+            return;
+        }
+
+        StatusMessage = changedCount > 0
+            ? $"{changedCount} 件のトラックに ReplayGain タグを反映しました（未保存）"
+            : "計算結果は既存の ReplayGain タグと同一でした";
+    }
+
+    private async Task ClearReplayGainCoreAsync(IReadOnlyList<TrackItemViewModel> targets, bool autoSave)
+    {
+        if (IsBusy || targets.Count == 0)
+        {
+            return;
+        }
+
+        var clearedTracks = new List<TrackItemViewModel>(targets.Count);
+        _isBatchUpdatingTracks = true;
+        try
+        {
+            foreach (var target in targets)
+            {
+                if (target.ClearReplayGainTags())
+                {
+                    clearedTracks.Add(target);
+                }
+            }
+        }
+        finally
+        {
+            _isBatchUpdatingTracks = false;
+        }
+
+        RefreshDirtyState();
+        SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
+        if (SearchReplace.IsOpen)
+        {
+            SearchReplace.RefreshResults(notifyFilter: true);
+        }
+
+        if (clearedTracks.Count == 0)
+        {
+            StatusMessage = "クリア対象の ReplayGain タグはありませんでした";
+            return;
+        }
+
+        if (autoSave)
+        {
+            var savableDirtyTracks = clearedTracks
+                .Where(t => t.IsDirty && !t.HasValidationErrors)
+                .Distinct()
+                .ToList();
+            var invalidDirtyCount = clearedTracks.Count(t => t.IsDirty && t.HasValidationErrors);
+
+            if (savableDirtyTracks.Count > 0)
+            {
+                await SaveTracksCoreAsync(savableDirtyTracks, useSingleFileNameStatus: savableDirtyTracks.Count == 1);
+                if (invalidDirtyCount > 0)
+                {
+                    StatusMessage = $"{StatusMessage}（入力エラーのある {invalidDirtyCount} 件は未保存）";
+                }
+            }
+            else if (invalidDirtyCount > 0)
+            {
+                StatusMessage = $"ReplayGain タグをクリアしましたが、入力エラーのある {invalidDirtyCount} 件は自動保存できませんでした（未保存）";
+            }
+            else
+            {
+                StatusMessage = "ReplayGain タグをクリアしました（保存不要）";
+            }
+
+            return;
+        }
+
+        var skippedCount = targets.Count - clearedTracks.Count;
+        if (targets.Count == 1)
+        {
+            StatusMessage = $"{clearedTracks[0].FileName} の ReplayGain タグをクリアしました（未保存）";
+        }
+        else if (skippedCount > 0)
+        {
+            StatusMessage = $"{clearedTracks.Count} 件のトラックから ReplayGain タグをクリアしました（未設定 {skippedCount} 件・未保存）";
+        }
+        else
+        {
+            StatusMessage = $"{clearedTracks.Count} 件のトラックから ReplayGain タグをクリアしました（未保存）";
         }
     }
 
@@ -1539,6 +1804,14 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             {
                 SearchReplace.RefreshResults(notifyFilter: true);
             }
+
+            UpdateSelectionDerivedState();
+            ClearAllReplayGainCommand.NotifyCanExecuteChanged();
+        }
+        else if (string.Equals(e.PropertyName, TrackItemViewModel.CustomTagsChangedPropertyName, StringComparison.Ordinal))
+        {
+            UpdateSelectionDerivedState();
+            ClearAllReplayGainCommand.NotifyCanExecuteChanged();
         }
 
         if (SearchReplace.IsOpen
@@ -1593,6 +1866,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         RevertAllCommand.NotifyCanExecuteChanged();
         PasteTsvCommand.NotifyCanExecuteChanged();
         ClearTrackListCommand.NotifyCanExecuteChanged();
+        CalculateReplayGainCommand.NotifyCanExecuteChanged();
+        ClearAllReplayGainCommand.NotifyCanExecuteChanged();
         UpdateSelectionDerivedState();
         SearchReplace.NotifyCommandStates();
     }
@@ -1695,6 +1970,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         var hasDirty = false;
         var hasValidDirty = false;
         var hasArtwork = false;
+        var hasReplayGain = false;
         var withArtworkCount = 0;
         var hasMixedArtwork = false;
         var referenceTrack = SelectedTrack is { } primary && selectedTracks.Contains(primary)
@@ -1718,6 +1994,11 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
                 withArtworkCount++;
             }
 
+            if (!hasReplayGain && track.HasReplayGainTags)
+            {
+                hasReplayGain = true;
+            }
+
             if (!hasMixedArtwork && referenceTrack is not null && !referenceTrack.HasSameArtworkAs(track))
             {
                 hasMixedArtwork = true;
@@ -1736,6 +2017,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         _hasAnySelectedDirtyTrack = hasDirty;
         _hasAnySelectedValidDirtyTrack = hasValidDirty;
         _hasAnySelectedArtworkTrack = hasArtwork;
+        _hasAnySelectedReplayGainTrack = hasReplayGain;
         _hasMixedArtworkInSelection = hasMixedArtwork;
         _mixedArtworkNoticeText = newMixedNotice;
 
@@ -1762,6 +2044,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
         SaveSelectedCommand.NotifyCanExecuteChanged();
         RevertSelectedCommand.NotifyCanExecuteChanged();
+        CalculateReplayGainSelectedCommand.NotifyCanExecuteChanged();
+        ClearSelectedReplayGainCommand.NotifyCanExecuteChanged();
         NotifyArtworkCommandStates();
     }
 

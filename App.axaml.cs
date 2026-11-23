@@ -51,6 +51,7 @@ public partial class App : Application
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         services.AddSingleton<ICustomTagDefinitionService, CustomTagDefinitionService>();
         services.AddSingleton<IAudioPlayerService, AudioPlayerService>();
+        services.AddSingleton<IReplayGainService, ReplayGainService>();
 
         // ViewModels
         services.AddSingleton<MainWindowViewModel>();

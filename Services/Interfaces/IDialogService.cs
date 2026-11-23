@@ -20,4 +20,9 @@ public interface IDialogService
     Task<CustomTagManagerResult?> ShowCustomTagManagerAsync(
         IReadOnlyList<CustomTagDefinition> currentDefinitions,
         IReadOnlyList<string>? savedCustomColumnKeys = null);
+
+    /// <summary>
+    /// ReplayGain 計算ダイアログをモーダル表示し、適用確定時は計算結果と保存オプション、キャンセル時は null を返す。
+    /// </summary>
+    Task<ReplayGainDialogResult?> ShowReplayGainAsync(ReplayGainDialogContext context);
 }

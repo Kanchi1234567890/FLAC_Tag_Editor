@@ -1,0 +1,364 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="using:FLAC_Tag_Editor.Models"
+        xmlns:vm="using:FLAC_Tag_Editor.ViewModels"
+        xmlns:views="using:FLAC_Tag_Editor.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="600"
+        x:Class="FLAC_Tag_Editor.Views.ReplayGainDialog"
+        x:DataType="vm:ReplayGainDialogViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{DynamicResource ReplayGainDialogTitle}"
+        Width="{DynamicResource ReplayGainDialogWidth}"
+        Height="{DynamicResource ReplayGainDialogHeight}"
+        MinWidth="{DynamicResource ReplayGainDialogMinWidth}"
+        MinHeight="{DynamicResource ReplayGainDialogMinHeight}"
+        CanResize="True"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource DetailPaneBackgroundColor}"
+        BorderBrush="{DynamicResource MainWindowBorderColor}"
+        views:WindowClosingBehavior.CloseGuard="{Binding}">
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding CloseCommand}"/>
+    </Window.KeyBindings>
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="../Resources/MainWindowResources.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.dialog-primary">
+            <Setter Property="Background" Value="{DynamicResource SearchOptionCheckedBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SearchOptionCheckedBorderColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style Selector="TextBox.editable-field">
+            <Setter Property="Background" Value="{DynamicResource EditableFieldBackgroundColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource EditableFieldBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="FontSize" Value="{DynamicResource BodyFontSize}"/>
+        </Style>
+
+        <Style Selector="Border.dialog-card">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MainWindowBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+            <Setter Property="Padding" Value="{DynamicResource ReplayGainCardPadding}"/>
+        </Style>
+
+        <Style Selector="Border.ffmpeg-status-badge">
+            <Setter Property="Background" Value="{DynamicResource ReplayGainErrorBadgeBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ErrorBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+            <Setter Property="Padding" Value="{DynamicResource PlayerStatusBadgePadding}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="Border.ffmpeg-status-badge.available">
+            <Setter Property="Background" Value="{DynamicResource ReplayGainReadyBadgeBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PreviewReadyTextColor}"/>
+        </Style>
+
+        <Style Selector="TextBlock.rg-status">
+            <Setter Property="Foreground" Value="{DynamicResource PreviewReadyTextColor}"/>
+            <Setter Property="FontSize" Value="{DynamicResource LabelFontSize}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+
+        <Style Selector="TextBlock.rg-status.error">
+            <Setter Property="Foreground" Value="{DynamicResource ErrorTextColor}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Window.Styles>
+
+    <Design.DataContext>
+        <vm:ReplayGainDialogViewModel/>
+    </Design.DataContext>
+
+    <Grid Margin="{DynamicResource UnsavedDialogPadding}"
+          RowDefinitions="Auto,Auto,Auto,*,Auto"
+          RowSpacing="{DynamicResource ReplayGainSectionSpacing}">
+
+        <!-- 1. FFmpeg 設定カード -->
+        <Border Grid.Row="0" Classes="dialog-card">
+            <StackPanel Spacing="{DynamicResource SmallItemSpacing}">
+                <Grid ColumnDefinitions="Auto,*,Auto"
+                      ColumnSpacing="{DynamicResource DetailItemSpacing}">
+                    <TextBlock Grid.Column="0"
+                               Text="{DynamicResource ReplayGainFfmpegSectionTitle}"
+                               Foreground="{DynamicResource SectionHeaderColor}"
+                               FontSize="{DynamicResource SectionHeaderFontSize}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding FfmpegStatusDetailText}"
+                               ToolTip.Tip="{Binding FfmpegStatusDetailText}"
+                               Foreground="{DynamicResource SecondaryTextColor}"
+                               FontSize="{DynamicResource LabelFontSize}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                    <Border Grid.Column="2"
+                            Classes="ffmpeg-status-badge"
+                            Classes.available="{Binding IsFfmpegAvailable}">
+                        <TextBlock Text="{Binding FfmpegStatusBadgeText}"
+                                   Foreground="{DynamicResource TextColor}"
+                                   FontSize="{DynamicResource SmallLabelFontSize}"
+                                   FontWeight="SemiBold"/>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto"
+                      ColumnSpacing="{DynamicResource SmallItemSpacing}">
+                    <TextBox Grid.Column="0"
+                             Text="{Binding FfmpegPath, Mode=TwoWay}"
+                             PlaceholderText="{DynamicResource ReplayGainFfmpegPathPlaceholder}"
+                             IsEnabled="{Binding CanEditOptions}"
+                             Classes="editable-field"/>
+                    <Button Grid.Column="1"
+                            Content="{DynamicResource ReplayGainBrowseFfmpegButtonText}"
+                            Command="{Binding BrowseFfmpegCommand}"
+                            ToolTip.Tip="{DynamicResource ReplayGainBrowseFfmpegToolTip}"
+                            Padding="{DynamicResource ArtworkActionButtonPadding}"/>
+                    <Button Grid.Column="2"
+                            Content="{DynamicResource ReplayGainAutoDetectFfmpegButtonText}"
+                            Command="{Binding ClearFfmpegPathCommand}"
+                            ToolTip.Tip="{DynamicResource ReplayGainAutoDetectFfmpegToolTip}"
+                            Padding="{DynamicResource ArtworkActionButtonPadding}"/>
+                    <Button Grid.Column="3"
+                            Content="{DynamicResource ReplayGainValidateFfmpegButtonText}"
+                            Command="{Binding ValidateFfmpegCommand}"
+                            ToolTip.Tip="{DynamicResource ReplayGainValidateFfmpegToolTip}"
+                            Padding="{DynamicResource ArtworkActionButtonPadding}"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- 2. 計算対象・モード設定カード -->
+        <Border Grid.Row="1" Classes="dialog-card">
+            <Grid ColumnDefinitions="*,*"
+                  ColumnSpacing="{DynamicResource ReplayGainOptionColumnSpacing}">
+                <!-- 左列: 計算対象 -->
+                <StackPanel Grid.Column="0" Spacing="{DynamicResource SmallItemSpacing}">
+                    <TextBlock Text="{DynamicResource ReplayGainTargetSectionTitle}"
+                               Foreground="{DynamicResource SectionHeaderColor}"
+                               FontSize="{DynamicResource LabelFontSize}"
+                               FontWeight="SemiBold"/>
+                    <RadioButton GroupName="ReplayGainTarget"
+                                 Content="{Binding SelectedTracksOptionText}"
+                                 IsChecked="{Binding UseSelectedTracks, Mode=TwoWay}"
+                                 IsEnabled="{Binding CanSelectTargetSelectedTracks}"
+                                 FontSize="{DynamicResource BodyFontSize}"/>
+                    <RadioButton GroupName="ReplayGainTarget"
+                                 Content="{Binding AllTracksOptionText}"
+                                 IsChecked="{Binding UseAllTracks, Mode=TwoWay}"
+                                 IsEnabled="{Binding CanEditOptions}"
+                                 FontSize="{DynamicResource BodyFontSize}"/>
+                </StackPanel>
+
+                <!-- 右列: 計算モード・アルバムグループ基準 -->
+                <StackPanel Grid.Column="1" Spacing="{DynamicResource SmallItemSpacing}">
+                    <TextBlock Text="{DynamicResource ReplayGainModeSectionTitle}"
+                               Foreground="{DynamicResource SectionHeaderColor}"
+                               FontSize="{DynamicResource LabelFontSize}"
+                               FontWeight="SemiBold"/>
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="{DynamicResource ReplayGainOptionColumnSpacing}"
+                                IsEnabled="{Binding CanEditOptions}">
+                        <RadioButton GroupName="ReplayGainMode"
+                                     Content="{DynamicResource ReplayGainModeTrackAndAlbumText}"
+                                     IsChecked="{Binding IsTrackAndAlbumMode, Mode=TwoWay}"
+                                     FontSize="{DynamicResource BodyFontSize}"/>
+                        <RadioButton GroupName="ReplayGainMode"
+                                     Content="{DynamicResource ReplayGainModeTrackOnlyText}"
+                                     IsChecked="{Binding IsTrackOnlyMode, Mode=TwoWay}"
+                                     FontSize="{DynamicResource BodyFontSize}"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="{DynamicResource ArtworkThumbContentSpacing}">
+                        <TextBlock Text="{DynamicResource ReplayGainAlbumGroupingLabelText}"
+                                   Foreground="{DynamicResource SecondaryTextColor}"
+                                   FontSize="{DynamicResource LabelFontSize}"/>
+                        <ComboBox ItemsSource="{Binding AlbumGroupingOptions}"
+                                  SelectedItem="{Binding SelectedAlbumGroupingOption, Mode=TwoWay}"
+                                  IsEnabled="{Binding IsAlbumGroupingEnabled}"
+                                  HorizontalAlignment="Stretch"
+                                  FontSize="{DynamicResource LabelFontSize}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:ReplayGainAlbumGroupingOption">
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 3. 実行・進捗バー領域 -->
+        <Border Grid.Row="2" Classes="dialog-card">
+            <StackPanel Spacing="{DynamicResource SmallItemSpacing}">
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto"
+                      ColumnSpacing="{DynamicResource DetailItemSpacing}">
+                    <Button Grid.Column="0"
+                            Content="{DynamicResource ReplayGainStartButtonText}"
+                            Command="{Binding StartCalculationCommand}"
+                            Classes="dialog-primary"
+                            Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+                    <Button Grid.Column="1"
+                            Content="{DynamicResource ReplayGainCancelCalculationButtonText}"
+                            Command="{Binding CancelCalculationCommand}"
+                            IsEnabled="{Binding IsCalculating}"
+                            Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding CurrentStatusText}"
+                               ToolTip.Tip="{Binding CurrentStatusText}"
+                               Foreground="{DynamicResource TextColor}"
+                               FontSize="{DynamicResource BodyFontSize}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="3"
+                               Text="{Binding ProgressCountText}"
+                               Foreground="{DynamicResource SecondaryTextColor}"
+                               FontSize="{DynamicResource LabelFontSize}"
+                               VerticalAlignment="Center"/>
+                </Grid>
+
+                <ProgressBar Minimum="0"
+                             Maximum="100"
+                             Value="{Binding ProgressPercent}"
+                             Height="{DynamicResource ReplayGainProgressBarHeight}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 4. 計算結果プレビュー -->
+        <Border Grid.Row="3"
+                Background="{DynamicResource MainWindowBackgroundColor}"
+                BorderBrush="{DynamicResource MainWindowBorderColor}"
+                BorderThickness="{DynamicResource ThinBorderThickness}"
+                CornerRadius="{DynamicResource DefaultCornerRadius}">
+            <Grid RowDefinitions="Auto,*">
+                <Border Grid.Row="0"
+                        Background="{DynamicResource SearchPreviewHeaderBackgroundColor}"
+                        BorderBrush="{DynamicResource MainWindowBorderColor}"
+                        BorderThickness="{DynamicResource BottomBorderThickness}"
+                        Padding="{DynamicResource SearchPreviewHeaderPadding}">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0"
+                                   Text="{DynamicResource ReplayGainResultsHeaderText}"
+                                   Foreground="{DynamicResource SectionHeaderColor}"
+                                   FontSize="{DynamicResource LabelFontSize}"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding ResultSummaryText}"
+                                   Foreground="{DynamicResource SecondaryTextColor}"
+                                   FontSize="{DynamicResource LabelFontSize}"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="1">
+                    <TextBlock Text="{DynamicResource ReplayGainResultsEmptyText}"
+                               IsVisible="{Binding !HasResults}"
+                               Foreground="{DynamicResource SecondaryTextColor}"
+                               FontSize="{DynamicResource BodyFontSize}"
+                               TextWrapping="Wrap"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               TextAlignment="Center"
+                               Margin="{DynamicResource DetailPanePadding}"/>
+
+                    <DataGrid ItemsSource="{Binding Results}"
+                              IsVisible="{Binding HasResults}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              CanUserReorderColumns="False"
+                              CanUserResizeColumns="True"
+                              CanUserSortColumns="True"
+                              GridLinesVisibility="Horizontal"
+                              Background="{DynamicResource MainWindowBackgroundColor}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{StaticResource ReplayGainColTrackHeader}"
+                                                Binding="{Binding FileName}"
+                                                Width="{StaticResource ReplayGainColTrackWidth}"/>
+                            <DataGridTextColumn Header="{StaticResource ReplayGainColAlbumGroupHeader}"
+                                                Binding="{Binding AlbumGroupLabel}"
+                                                Width="{StaticResource ReplayGainColAlbumGroupWidth}"/>
+                            <DataGridTextColumn Header="{StaticResource ReplayGainColTrackGainHeader}"
+                                                Binding="{Binding TrackGainText}"
+                                                Width="{StaticResource ReplayGainColGainWidth}"/>
+                            <DataGridTextColumn Header="{StaticResource ReplayGainColTrackPeakHeader}"
+                                                Binding="{Binding TrackPeakText}"
+                                                Width="{StaticResource ReplayGainColPeakWidth}"/>
+                            <DataGridTextColumn Header="{StaticResource ReplayGainColAlbumGainHeader}"
+                                                Binding="{Binding AlbumGainText}"
+                                                Width="{StaticResource ReplayGainColGainWidth}"/>
+                            <DataGridTextColumn Header="{StaticResource ReplayGainColAlbumPeakHeader}"
+                                                Binding="{Binding AlbumPeakText}"
+                                                Width="{StaticResource ReplayGainColPeakWidth}"/>
+                            <DataGridTemplateColumn Header="{StaticResource ReplayGainColStatusHeader}"
+                                                    SortMemberPath="StatusDisplay"
+                                                    Width="{StaticResource ReplayGainColStatusWidth}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate x:DataType="models:ReplayGainTrackResult">
+                                        <TextBlock Text="{Binding StatusDisplay}"
+                                                   ToolTip.Tip="{Binding StatusDisplay}"
+                                                   Classes="rg-status"
+                                                   Classes.error="{Binding HasError}"
+                                                   Margin="{DynamicResource CompactButtonPadding}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- 5. フッター（即時保存オプション・適用 / 閉じる） -->
+        <Grid Grid.Row="4"
+              ColumnDefinitions="*,Auto"
+              ColumnSpacing="{DynamicResource DetailItemSpacing}">
+            <CheckBox Grid.Column="0"
+                      Content="{DynamicResource ReplayGainAutoSaveCheckBoxText}"
+                      IsChecked="{Binding AutoSaveAfterApply, Mode=TwoWay}"
+                      IsEnabled="{Binding CanEditOptions}"
+                      ToolTip.Tip="{DynamicResource ReplayGainAutoSaveToolTip}"
+                      FontSize="{DynamicResource LabelFontSize}"
+                      Foreground="{DynamicResource SecondaryTextColor}"
+                      VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="{DynamicResource ToolbarSpacing}">
+                <Button Content="{Binding ClearTagsButtonText}"
+                        Command="{Binding ClearTargetTagsCommand}"
+                        ToolTip.Tip="{DynamicResource ReplayGainClearTargetTagsToolTip}"
+                        Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+                <Button Content="{Binding ApplyButtonText}"
+                        Command="{Binding ApplyCommand}"
+                        Classes="dialog-primary"
+                        Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+                <Button Content="{DynamicResource ReplayGainCloseButtonText}"
+                        Command="{Binding CloseCommand}"
+                        Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

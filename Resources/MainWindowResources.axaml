@@ -69,6 +69,8 @@
     <SolidColorBrush x:Key="PlayerStatusPlayingBorderColor" Color="#8878B7FF"/>
     <SolidColorBrush x:Key="PlayerStatusPausedBackgroundColor" Color="#33FFC857"/>
     <SolidColorBrush x:Key="PlayerStatusPausedBorderColor" Color="#88FFC857"/>
+    <SolidColorBrush x:Key="ReplayGainReadyBadgeBackgroundColor" Color="#3381C784"/>
+    <SolidColorBrush x:Key="ReplayGainErrorBadgeBackgroundColor" Color="#33FF6B6B"/>
 
     <!-- Player Vector Icons (24x24 closed paths) -->
     <StreamGeometry x:Key="PlayerPlayIconGeometry">M8,5.14V19.14L19,12.14L8,5.14Z</StreamGeometry>
@@ -138,6 +140,13 @@
     <x:Double x:Key="PlayerSeekSliderMinWidth">140</x:Double>
     <x:Double x:Key="PlayerVolumeSliderWidth">88</x:Double>
     <x:Double x:Key="PlayerVolumeTextMinWidth">44</x:Double>
+    <x:Double x:Key="ReplayGainDialogWidth">780</x:Double>
+    <x:Double x:Key="ReplayGainDialogHeight">600</x:Double>
+    <x:Double x:Key="ReplayGainDialogMinWidth">640</x:Double>
+    <x:Double x:Key="ReplayGainDialogMinHeight">460</x:Double>
+    <x:Double x:Key="ReplayGainSectionSpacing">10</x:Double>
+    <x:Double x:Key="ReplayGainOptionColumnSpacing">16</x:Double>
+    <x:Double x:Key="ReplayGainProgressBarHeight">8</x:Double>
 
     <!-- DataGrid Column Widths -->
     <DataGridLength x:Key="ColDirtyWidth">28</DataGridLength>
@@ -158,6 +167,11 @@
     <DataGridLength x:Key="ColPreviewBeforeWidth">Auto</DataGridLength>
     <DataGridLength x:Key="ColPreviewAfterWidth">Auto</DataGridLength>
     <DataGridLength x:Key="ColPreviewStatusWidth">Auto</DataGridLength>
+    <DataGridLength x:Key="ReplayGainColTrackWidth">170</DataGridLength>
+    <DataGridLength x:Key="ReplayGainColAlbumGroupWidth">150</DataGridLength>
+    <DataGridLength x:Key="ReplayGainColGainWidth">92</DataGridLength>
+    <DataGridLength x:Key="ReplayGainColPeakWidth">86</DataGridLength>
+    <DataGridLength x:Key="ReplayGainColStatusWidth">*</DataGridLength>
 
     <!-- Spacing / Borders / Typography -->
     <Thickness x:Key="ToolbarPadding">12,8</Thickness>
@@ -183,6 +197,7 @@
     <Thickness x:Key="CustomTagManagerHeaderMargin">8,0,8,4</Thickness>
     <Thickness x:Key="CustomTagManagerErrorMargin">56,0,0,0</Thickness>
     <Thickness x:Key="CustomTagManagerAddBarMargin">0,10,0,0</Thickness>
+    <Thickness x:Key="ReplayGainCardPadding">10,8</Thickness>
     <Thickness x:Key="CompactButtonPadding">8,2</Thickness>
     <Thickness x:Key="ArtworkActionButtonPadding">10,4</Thickness>
     <Thickness x:Key="ArtworkNavButtonPadding\">4,1</Thickness>
@@ -370,5 +385,41 @@
     <x:String x:Key="PlayerStopToolTip">停止</x:String>
     <x:String x:Key="PlayerPlaySelectedButtonText">選択曲を再生</x:String>
     <x:String x:Key="PlayerVolumeSliderToolTip">音量を調整（settings.toml に自動保存）</x:String>
+    <x:String x:Key="ReplayGainButtonText">ReplayGain</x:String>
+    <x:String x:Key="ReplayGainButtonToolTip">FFmpeg を用いて ReplayGain を計算・タグへ反映します（▼から ReplayGain タグのクリアも可能）</x:String>
+    <x:String x:Key="ReplayGainCalculateMenuText">ReplayGain を計算...</x:String>
+    <x:String x:Key="ReplayGainClearSelectedMenuText">選択トラックの ReplayGain タグをクリア</x:String>
+    <x:String x:Key="ReplayGainClearAllMenuText">すべてのトラックの ReplayGain タグをクリア</x:String>
+    <x:String x:Key="ReplayGainContextMenuText">選択トラックの ReplayGain を計算...</x:String>
+    <x:String x:Key="ReplayGainClearSelectedContextMenuText">選択トラックの ReplayGain タグをクリア</x:String>
+    <x:String x:Key="ReplayGainDialogTitle">ReplayGain の計算 (FFmpeg)</x:String>
+    <x:String x:Key="ReplayGainFfmpegSectionTitle">FFmpeg</x:String>
+    <x:String x:Key="ReplayGainFfmpegPathPlaceholder">空欄で自動検出（アプリフォルダ / PATH）または ffmpeg.exe のフルパスを指定</x:String>
+    <x:String x:Key="ReplayGainBrowseFfmpegButtonText">参照...</x:String>
+    <x:String x:Key="ReplayGainBrowseFfmpegToolTip">ffmpeg.exe をファイル選択ダイアログから指定（settings.toml に保存）</x:String>
+    <x:String x:Key="ReplayGainAutoDetectFfmpegButtonText">自動検出</x:String>
+    <x:String x:Key="ReplayGainAutoDetectFfmpegToolTip">カスタムパスをクリアし、アプリフォルダまたは環境変数 PATH から自動検出</x:String>
+    <x:String x:Key="ReplayGainValidateFfmpegButtonText">確認</x:String>
+    <x:String x:Key="ReplayGainValidateFfmpegToolTip">現在の FFmpeg パスを検証して settings.toml に保存</x:String>
+    <x:String x:Key="ReplayGainTargetSectionTitle">計算対象</x:String>
+    <x:String x:Key="ReplayGainModeSectionTitle">計算モード</x:String>
+    <x:String x:Key="ReplayGainModeTrackAndAlbumText">トラック + アルバム</x:String>
+    <x:String x:Key="ReplayGainModeTrackOnlyText">トラックのみ</x:String>
+    <x:String x:Key="ReplayGainAlbumGroupingLabelText">アルバムのグルーピング基準</x:String>
+    <x:String x:Key="ReplayGainStartButtonText">計算開始</x:String>
+    <x:String x:Key="ReplayGainCancelCalculationButtonText">キャンセル</x:String>
+    <x:String x:Key="ReplayGainResultsHeaderText">計算結果プレビュー</x:String>
+    <x:String x:Key="ReplayGainResultsEmptyText">「計算開始」を実行すると、各トラックの Track / Album Gain および Peak の算出結果がここに表示されます。</x:String>
+    <x:String x:Key="ReplayGainColTrackHeader">トラック</x:String>
+    <x:String x:Key="ReplayGainColAlbumGroupHeader">アルバムグループ</x:String>
+    <x:String x:Key="ReplayGainColTrackGainHeader">Track Gain</x:String>
+    <x:String x:Key="ReplayGainColTrackPeakHeader">Track Peak</x:String>
+    <x:String x:Key="ReplayGainColAlbumGainHeader">Album Gain</x:String>
+    <x:String x:Key="ReplayGainColAlbumPeakHeader">Album Peak</x:String>
+    <x:String x:Key="ReplayGainColStatusHeader">状態</x:String>
+    <x:String x:Key="ReplayGainAutoSaveCheckBoxText">適用後に FLAC ファイルへ即時保存する</x:String>
+    <x:String x:Key="ReplayGainAutoSaveToolTip">チェックを外すと未保存変更としてタグに反映されます（確認後に Ctrl+S 等で保存可能）。チェック時は適用直後に自動保存します。</x:String>
+    <x:String x:Key="ReplayGainClearTargetTagsToolTip">計算対象に選択されているトラックの ReplayGain 関連タグ（REPLAYGAIN_*）をすべてクリアします</x:String>
+    <x:String x:Key="ReplayGainCloseButtonText">閉じる</x:String>
 
 </ResourceDictionary>

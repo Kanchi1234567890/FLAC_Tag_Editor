@@ -12,6 +12,7 @@ public sealed class AppSettings
     public TrackGridSettings TrackGrid { get; set; } = new();
     public DetailPaneSettings DetailPane { get; set; } = new();
     public AudioPlayerSettings AudioPlayer { get; set; } = new();
+    public ReplayGainSettings ReplayGain { get; set; } = new();
 
     /// <summary>
     /// 既定値で初期化された <see cref="AppSettings"/> を生成する。
@@ -22,7 +23,27 @@ public sealed class AppSettings
         {
             TrackGrid = TrackGridSettings.CreateDefault(),
             DetailPane = DetailPaneSettings.CreateDefault(),
-            AudioPlayer = AudioPlayerSettings.CreateDefault()
+            AudioPlayer = AudioPlayerSettings.CreateDefault(),
+            ReplayGain = ReplayGainSettings.CreateDefault()
+        };
+    }
+}
+
+/// <summary>
+/// ReplayGain 計算（FFmpeg 連携）の永続化設定モデル。
+/// </summary>
+public sealed class ReplayGainSettings
+{
+    /// <summary>
+    /// 明示指定された FFmpeg 実行ファイルパス（空欄時はアプリフォルダ・環境変数 PATH から自動検出）。
+    /// </summary>
+    public string FfmpegPath { get; set; } = string.Empty;
+
+    public static ReplayGainSettings CreateDefault()
+    {
+        return new ReplayGainSettings
+        {
+            FfmpegPath = string.Empty
         };
     }
 }

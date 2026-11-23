@@ -16,6 +16,20 @@ namespace FLAC_Tag_Editor.Services.Implementations;
 /// </summary>
 public sealed class DialogService : IDialogService
 {
+    private readonly IReplayGainService _replayGainService;
+    private readonly IFileDialogService _fileDialogService;
+    private readonly IAppSettingsService _appSettingsService;
+
+    public DialogService(
+        IReplayGainService replayGainService,
+        IFileDialogService fileDialogService,
+        IAppSettingsService appSettingsService)
+    {
+        _replayGainService = replayGainService ?? throw new ArgumentNullException(nameof(replayGainService));
+        _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
+        _appSettingsService = appSettingsService ?? throw new ArgumentNullException(nameof(appSettingsService));
+    }
+
     public async Task<UnsavedChangesAction> ConfirmUnsavedChangesAsync(UnsavedChangesPromptContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -76,6 +90,42 @@ public sealed class DialogService : IDialogService
         try
         {
             return await dialog.ShowDialog<CustomTagManagerResult?>(owner);
+        }
+        finally
+        {
+            viewModel.CloseRequested -= OnCloseRequested;
+        }
+    }
+
+    public async Task<ReplayGainDialogResult?> ShowReplayGainAsync(ReplayGainDialogContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var owner = GetMainWindow();
+        if (owner is null)
+        {
+            return null;
+        }
+
+        using var viewModel = new ReplayGainDialogViewModel(
+            context,
+            _replayGainService,
+            _fileDialogService,
+            _appSettingsService);
+        var dialog = new ReplayGainDialog
+        {
+            DataContext = viewModel
+        };
+
+        void OnCloseRequested(ReplayGainDialogResult? result)
+        {
+            dialog.Close(result);
+        }
+
+        viewModel.CloseRequested += OnCloseRequested;
+        try
+        {
+            return await dialog.ShowDialog<ReplayGainDialogResult?>(owner);
         }
         finally
         {

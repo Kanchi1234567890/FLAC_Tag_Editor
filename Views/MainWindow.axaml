@@ -311,6 +311,21 @@
                                   IsChecked="{Binding SearchReplace.IsOpen, Mode=OneWay}"
                                   Command="{Binding SearchReplace.ToggleBarCommand}"
                                   ToolTip.Tip="{DynamicResource SearchReplaceToolTip}"/>
+                    <SplitButton Content="{DynamicResource ReplayGainButtonText}"
+                                 Command="{Binding CalculateReplayGainCommand}"
+                                 ToolTip.Tip="{DynamicResource ReplayGainButtonToolTip}">
+                        <SplitButton.Flyout>
+                            <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                <MenuItem Header="{DynamicResource ReplayGainCalculateMenuText}"
+                                          Command="{Binding CalculateReplayGainCommand}"/>
+                                <Separator/>
+                                <MenuItem Header="{DynamicResource ReplayGainClearSelectedMenuText}"
+                                          Command="{Binding ClearSelectedReplayGainCommand}"/>
+                                <MenuItem Header="{DynamicResource ReplayGainClearAllMenuText}"
+                                          Command="{Binding ClearAllReplayGainCommand}"/>
+                            </MenuFlyout>
+                        </SplitButton.Flyout>
+                    </SplitButton>
                     <Button Content="{DynamicResource ColumnsButtonText}"
                             ToolTip.Tip="{DynamicResource ColumnsButtonToolTip}">
                         <Button.Flyout>
@@ -953,6 +968,11 @@
                             <Separator/>
                             <MenuItem Header="{DynamicResource PasteTsvContextMenuText}"
                                       Command="{Binding #TracksDataGrid.(views:DataGridPasteBehavior.TriggerPasteCommand)}"/>
+                            <Separator/>
+                            <MenuItem Header="{DynamicResource ReplayGainContextMenuText}"
+                                      Command="{Binding CalculateReplayGainSelectedCommand}"/>
+                            <MenuItem Header="{DynamicResource ReplayGainClearSelectedContextMenuText}"
+                                      Command="{Binding ClearSelectedReplayGainCommand}"/>
                             <Separator/>
                             <MenuItem Header="{DynamicResource AddArtworkContextMenuText}"
                                       Command="{Binding AddArtworkCommand}"/>
