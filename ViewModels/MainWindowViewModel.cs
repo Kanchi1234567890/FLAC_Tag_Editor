@@ -180,6 +180,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
                 new CustomTagDefinition("LYRICIST", "作詞者", IsVisible: true)
             ]);
         CustomTagCatalog.DefinitionsChanged += OnCustomTagDefinitionsChanged;
+        ColumnSettings.SyncCustomTagDefinitions(CustomTagCatalog.GetSnapshot());
         SearchReplace = CreateSearchReplaceViewModel();
         SelectedTracks.CollectionChanged += OnSelectedTracksCollectionChanged;
 
@@ -392,14 +393,35 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
 
         var currentSnapshot = CustomTagCatalog.GetSnapshot();
-        var updatedDefinitions = await _dialogService.ShowCustomTagManagerAsync(currentSnapshot);
-        if (updatedDefinitions is null)
+        var savedColumnKeys = ColumnSettings.GetSavedCustomColumnKeys();
+        var managerResult = await _dialogService.ShowCustomTagManagerAsync(currentSnapshot, savedColumnKeys);
+        if (managerResult is null)
         {
             return;
         }
 
-        CustomTagCatalog.ApplyDefinitions(updatedDefinitions);
-        StatusMessage = $"独自タグ定義を更新しました（{CustomTagCatalog.Definitions.Count} 件）";
+        var definitionsChanged = !HasSameCustomTagDefinitions(currentSnapshot, managerResult.Definitions);
+        if (definitionsChanged)
+        {
+            CustomTagCatalog.ApplyDefinitions(managerResult.Definitions);
+        }
+
+        var cleanedCount = managerResult.CleanupUnusedColumnSettings
+            ? ColumnSettings.CleanupUnusedCustomColumnSettings(CustomTagCatalog.Definitions.Select(d => d.Key))
+            : 0;
+
+        if (cleanedCount > 0 && !definitionsChanged)
+        {
+            StatusMessage = $"未使用の独自タグ列設定 {cleanedCount} 件をクリーンアップしました";
+        }
+        else if (cleanedCount > 0)
+        {
+            StatusMessage = $"独自タグ定義を更新しました（{CustomTagCatalog.Definitions.Count} 件・未使用の列設定 {cleanedCount} 件をクリーンアップ）";
+        }
+        else
+        {
+            StatusMessage = $"独自タグ定義を更新しました（{CustomTagCatalog.Definitions.Count} 件）";
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanOpen))]
@@ -797,8 +819,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
                     break;
                 }
 
-                var columnKind = orderedColumns[targetColIndex];
-                var outcome = track.ApplyGridCellValue(columnKind, sourceCells[colOffset]);
+                var columnId = orderedColumns[targetColIndex];
+                var outcome = track.ApplyGridCellValue(columnId, sourceCells[colOffset]);
                 switch (outcome)
                 {
                     case GridCellApplyResult.Applied:
@@ -864,9 +886,9 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     private async Task LoadInitialSettingsAsync(CancellationToken cancellationToken)
     {
+        await CustomTagCatalog.LoadAsync(cancellationToken);
         await ColumnSettings.LoadAsync(cancellationToken);
         await DetailPane.LoadAsync(cancellationToken);
-        await CustomTagCatalog.LoadAsync(cancellationToken);
     }
 
     private void OnCustomTagDefinitionsChanged(object? sender, EventArgs e)
@@ -875,6 +897,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         {
             return;
         }
+
+        ColumnSettings.SyncCustomTagDefinitions(CustomTagCatalog.GetSnapshot());
 
         if (Tracks.Count > 0)
         {
@@ -1884,7 +1908,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     private (
         IReadOnlyList<TrackItemViewModel> OrderedTracks,
         int StartRowIndex,
-        IReadOnlyList<TrackGridColumnKind> OrderedColumns,
+        IReadOnlyList<TrackGridColumnId> OrderedColumns,
         int StartColumnIndex) ResolvePasteTarget(TsvPasteRequest? request)
     {
         var tracksByPath = new Dictionary<string, TrackItemViewModel>(StringComparer.OrdinalIgnoreCase);
@@ -1918,7 +1942,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
                 : 0;
         }
 
-        IReadOnlyList<TrackGridColumnKind> orderedColumns;
+        IReadOnlyList<TrackGridColumnId> orderedColumns;
         int startColumnIndex;
         if (request is { OrderedColumns.Count: > 0 })
         {
@@ -1932,7 +1956,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             startColumnIndex = 0;
             for (var i = 0; i < visibleColumns.Count; i++)
             {
-                if (visibleColumns[i].IsEditable())
+                if (visibleColumns[i].IsEditable)
                 {
                     startColumnIndex = i;
                     break;
@@ -1941,6 +1965,28 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         }
 
         return (orderedTracks, startRowIndex, orderedColumns, startColumnIndex);
+    }
+
+    private static bool HasSameCustomTagDefinitions(
+        IReadOnlyList<CustomTagDefinition> current,
+        IReadOnlyList<CustomTagDefinition> updated)
+    {
+        if (current.Count != updated.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < current.Count; i++)
+        {
+            if (!string.Equals(current[i].Key, updated[i].Key, StringComparison.Ordinal)
+                || !string.Equals(current[i].Label, updated[i].Label, StringComparison.Ordinal)
+                || current[i].IsVisible != updated[i].IsVisible)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string BuildPasteStatusMessage(

@@ -15,8 +15,9 @@ public interface IDialogService
     Task<UnsavedChangesAction> ConfirmUnsavedChangesAsync(UnsavedChangesPromptContext context);
 
     /// <summary>
-    /// 独自タグ定義管理ダイアログをモーダル表示し、OK 確定時は編集後の定義一覧、キャンセル時は null を返す。
+    /// 独自タグ定義管理ダイアログをモーダル表示し、OK 確定時は結果（編集後の定義一覧とクリーンアップ指定）、キャンセル時は null を返す。
     /// </summary>
-    Task<IReadOnlyList<CustomTagDefinition>?> ShowCustomTagManagerAsync(
-        IReadOnlyList<CustomTagDefinition> currentDefinitions);
+    Task<CustomTagManagerResult?> ShowCustomTagManagerAsync(
+        IReadOnlyList<CustomTagDefinition> currentDefinitions,
+        IReadOnlyList<string>? savedCustomColumnKeys = null);
 }

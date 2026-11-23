@@ -49,8 +49,9 @@ public sealed class DialogService : IDialogService
         }
     }
 
-    public async Task<IReadOnlyList<CustomTagDefinition>?> ShowCustomTagManagerAsync(
-        IReadOnlyList<CustomTagDefinition> currentDefinitions)
+    public async Task<CustomTagManagerResult?> ShowCustomTagManagerAsync(
+        IReadOnlyList<CustomTagDefinition> currentDefinitions,
+        IReadOnlyList<string>? savedCustomColumnKeys = null)
     {
         ArgumentNullException.ThrowIfNull(currentDefinitions);
 
@@ -60,21 +61,21 @@ public sealed class DialogService : IDialogService
             return null;
         }
 
-        var viewModel = new CustomTagManagerDialogViewModel(currentDefinitions);
+        var viewModel = new CustomTagManagerDialogViewModel(currentDefinitions, savedCustomColumnKeys);
         var dialog = new CustomTagManagerDialog
         {
             DataContext = viewModel
         };
 
-        void OnCloseRequested(IReadOnlyList<CustomTagDefinition>? definitions)
+        void OnCloseRequested(CustomTagManagerResult? result)
         {
-            dialog.Close(definitions);
+            dialog.Close(result);
         }
 
         viewModel.CloseRequested += OnCloseRequested;
         try
         {
-            return await dialog.ShowDialog<IReadOnlyList<CustomTagDefinition>?>(owner);
+            return await dialog.ShowDialog<CustomTagManagerResult?>(owner);
         }
         finally
         {

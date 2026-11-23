@@ -123,10 +123,12 @@ public sealed partial class CustomTagDefinitionRowViewModel : ViewModelBase
 
 /// <summary>
 /// 独自タグ定義管理ダイアログの ViewModel。
-/// 作業用コピーを編集し、OK 確定時のみ呼び出し元へ新しい定義リストを返す。
+/// 作業用コピーを編集し、OK 確定時のみ呼び出し元へ新しい定義リストとクリーンアップ指定を返す。
 /// </summary>
 public sealed partial class CustomTagManagerDialogViewModel : ViewModelBase
 {
+    private readonly HashSet<string> _savedCustomColumnKeys;
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     private bool _canConfirm = true;
@@ -134,19 +136,36 @@ public sealed partial class CustomTagManagerDialogViewModel : ViewModelBase
     [ObservableProperty]
     private string _validationSummaryText = string.Empty;
 
+    [ObservableProperty]
+    private bool _cleanupUnusedColumnSettings;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnusedColumnSettings))]
+    [NotifyPropertyChangedFor(nameof(CleanupCheckboxText))]
+    private int _unusedColumnSettingsCount;
+
     public CustomTagManagerDialogViewModel()
         : this(
         [
             new CustomTagDefinition("LYRICIST", "作詞者", IsVisible: true),
             new CustomTagDefinition("COMPOSER", "作曲者", IsVisible: true),
             new CustomTagDefinition("CATALOGNUMBER", string.Empty, IsVisible: true)
-        ])
+        ],
+        ["OLD_TAG"])
     {
     }
 
-    public CustomTagManagerDialogViewModel(IReadOnlyList<CustomTagDefinition> definitions)
+    public CustomTagManagerDialogViewModel(
+        IReadOnlyList<CustomTagDefinition> definitions,
+        IReadOnlyList<string>? savedCustomColumnKeys = null)
     {
         ArgumentNullException.ThrowIfNull(definitions);
+
+        _savedCustomColumnKeys = new HashSet<string>(
+            (savedCustomColumnKeys ?? [])
+                .Where(k => !string.IsNullOrWhiteSpace(k))
+                .Select(k => k.Trim()),
+            StringComparer.OrdinalIgnoreCase);
 
         foreach (var def in definitions)
         {
@@ -162,7 +181,13 @@ public sealed partial class CustomTagManagerDialogViewModel : ViewModelBase
 
     public bool HasValidationError => !string.IsNullOrEmpty(ValidationSummaryText);
 
-    public event Action<IReadOnlyList<CustomTagDefinition>?>? CloseRequested;
+    public bool HasUnusedColumnSettings => UnusedColumnSettingsCount > 0;
+
+    public string CleanupCheckboxText => HasUnusedColumnSettings
+        ? $"確定時に未使用の列設定をクリーンアップ（{UnusedColumnSettingsCount} 件）"
+        : "確定時に未使用の列設定をクリーンアップ（対象なし）";
+
+    public event Action<CustomTagManagerResult?>? CloseRequested;
 
     [RelayCommand]
     private void AddDefinition()
@@ -182,8 +207,9 @@ public sealed partial class CustomTagManagerDialogViewModel : ViewModelBase
             return;
         }
 
-        var result = Items.Select(item => item.ToModel()).ToList();
-        CloseRequested?.Invoke(result);
+        var definitions = Items.Select(item => item.ToModel()).ToList();
+        var shouldCleanup = CleanupUnusedColumnSettings && HasUnusedColumnSettings;
+        CloseRequested?.Invoke(new CustomTagManagerResult(definitions, shouldCleanup));
     }
 
     [RelayCommand]
@@ -261,12 +287,30 @@ public sealed partial class CustomTagManagerDialogViewModel : ViewModelBase
         }
 
         UpdateRowMoveStates();
+        UpdateUnusedColumnSettingsState();
 
         CanConfirm = errorCount == 0;
         ValidationSummaryText = errorCount > 0
             ? $"入力エラーが {errorCount} 件あります。修正してから確定してください。"
             : string.Empty;
         OnPropertyChanged(nameof(HasValidationError));
+    }
+
+    private void UpdateUnusedColumnSettingsState()
+    {
+        var currentKeys = new HashSet<string>(
+            Items
+                .Select(r => r.Key?.Trim() ?? string.Empty)
+                .Where(k => k.Length > 0),
+            StringComparer.OrdinalIgnoreCase);
+
+        var unusedCount = _savedCustomColumnKeys.Count(key => !currentKeys.Contains(key));
+        UnusedColumnSettingsCount = unusedCount;
+
+        if (unusedCount == 0 && CleanupUnusedColumnSettings)
+        {
+            CleanupUnusedColumnSettings = false;
+        }
     }
 
     private void UpdateRowMoveStates()

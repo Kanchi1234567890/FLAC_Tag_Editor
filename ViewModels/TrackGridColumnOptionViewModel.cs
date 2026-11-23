@@ -24,12 +24,21 @@ public sealed partial class TrackGridColumnOptionViewModel : ViewModelBase
     [ObservableProperty]
     private bool _canToggle = true;
 
+    [ObservableProperty]
+    private string _displayName;
+
+    [ObservableProperty]
+    private string _headerText;
+
     public TrackGridColumnOptionViewModel(
         TrackGridColumnDefinition definition,
         Action<TrackGridColumnOptionViewModel> onVisibilityChanged)
     {
         Definition = definition ?? throw new ArgumentNullException(nameof(definition));
         _onVisibilityChanged = onVisibilityChanged ?? throw new ArgumentNullException(nameof(onVisibilityChanged));
+
+        _displayName = definition.DisplayName;
+        _headerText = definition.EffectiveHeaderText;
 
         _suppressCallbacks = true;
         try
@@ -45,13 +54,17 @@ public sealed partial class TrackGridColumnOptionViewModel : ViewModelBase
         }
     }
 
-    public TrackGridColumnDefinition Definition { get; }
+    public TrackGridColumnDefinition Definition { get; private set; }
+
+    public TrackGridColumnId ColumnId => Definition.ColumnId;
 
     public TrackGridColumnKind Kind => Definition.Kind;
 
-    public string Key => Definition.Key;
+    public bool IsCustomTag => Definition.IsCustomTag;
 
-    public string DisplayName => Definition.DisplayName;
+    public string? CustomTagKey => Definition.CustomTagKey;
+
+    public string Key => Definition.Key;
 
     public bool IsToggleable => Definition.IsToggleable;
 
@@ -60,6 +73,17 @@ public sealed partial class TrackGridColumnOptionViewModel : ViewModelBase
     public double DefaultWidth => Definition.DefaultWidth;
 
     public double MinWidth => Definition.MinWidth;
+
+    /// <summary>
+    /// 独自タグ定義のラベルやキー表記・並び順変更に追従してメタデータを更新する。
+    /// </summary>
+    internal void UpdateDefinition(TrackGridColumnDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        Definition = definition;
+        DisplayName = definition.DisplayName;
+        HeaderText = definition.EffectiveHeaderText;
+    }
 
     /// <summary>
     /// ViewModel 内部からの同期・読み込み時にコールバックを抑止して値を適用する。

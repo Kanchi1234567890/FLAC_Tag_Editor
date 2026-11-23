@@ -213,21 +213,33 @@
                        TextWrapping="Wrap"/>
         </Grid>
 
-        <!-- OK / Cancel -->
-        <StackPanel Grid.Row="4"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Spacing="{DynamicResource ToolbarSpacing}"
-                    Margin="{DynamicResource UnsavedDialogButtonsMargin}">
-            <Button Content="{DynamicResource DialogOkButtonText}"
-                    Command="{Binding ConfirmCommand}"
-                    Classes="dialog-primary"
-                    IsDefault="{Binding CanConfirm}"
-                    Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
-            <Button Content="{DynamicResource DialogCancelButtonText}"
-                    Command="{Binding CancelCommand}"
-                    IsCancel="True"
-                    Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
-        </StackPanel>
+        <!-- クリーンアップ指定・OK / Cancel -->
+        <Grid Grid.Row="4"
+              ColumnDefinitions="*,Auto"
+              ColumnSpacing="{DynamicResource DetailItemSpacing}"
+              Margin="{DynamicResource UnsavedDialogButtonsMargin}">
+            <CheckBox Grid.Column="0"
+                      Content="{Binding CleanupCheckboxText}"
+                      IsChecked="{Binding CleanupUnusedColumnSettings, Mode=TwoWay}"
+                      IsEnabled="{Binding HasUnusedColumnSettings}"
+                      ToolTip.Tip="{DynamicResource CustomTagManagerCleanupToolTip}"
+                      FontSize="{DynamicResource LabelFontSize}"
+                      Foreground="{DynamicResource SecondaryTextColor}"
+                      VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="{DynamicResource ToolbarSpacing}">
+                <Button Content="{DynamicResource DialogOkButtonText}"
+                        Command="{Binding ConfirmCommand}"
+                        Classes="dialog-primary"
+                        IsDefault="{Binding CanConfirm}"
+                        Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+                <Button Content="{DynamicResource DialogCancelButtonText}"
+                        Command="{Binding CancelCommand}"
+                        IsCancel="True"
+                        Padding="{DynamicResource UnsavedDialogButtonPadding}"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

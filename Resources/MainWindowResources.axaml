@@ -96,6 +96,7 @@
     <x:Double x:Key="UnsavedDialogSectionSpacing">12</x:Double>
     <x:Double x:Key="UnsavedDialogLineHeight">20</x:Double>
     <x:Double x:Key="ColumnChooserFlyoutMinWidth">200</x:Double>
+    <x:Double x:Key="ColumnChooserFlyoutMaxHeight">480</x:Double>
     <x:Double x:Key="ColumnChooserDividerHeight">1</x:Double>
     <x:Double x:Key="ColumnChooserItemSpacing">4</x:Double>
     <x:Double x:Key="DetailFieldChooserFlyoutMinWidth">230</x:Double>
@@ -212,6 +213,7 @@
     <x:String x:Key="ColumnsButtonText">表示列</x:String>
     <x:String x:Key="ColumnsButtonToolTip">一覧に表示する列の切り替え・並び順と列幅のリセット（settings.toml に自動保存）</x:String>
     <x:String x:Key="ColumnChooserTitleText">表示する列</x:String>
+    <x:String x:Key="ColumnChooserCustomTagsTitleText">独自タグ</x:String>
     <x:String x:Key="ResetColumnsButtonText">既定に戻す</x:String>
     <x:String x:Key="ResetColumnsToolTip">列の表示・並び順・幅を既定の状態に戻します</x:String>
     <x:String x:Key="ColumnsContextMenuText">表示列</x:String>
@@ -294,7 +296,6 @@
     <x:String x:Key="RegisterCustomTagDefinitionButtonText">定義を登録</x:String>
     <x:String x:Key="RegisterCustomTagDefinitionToolTip">このキーを独自タグ定義（custom_tags.toml）へ登録し、全トラック共通の編集項目にします</x:String>
     <x:String x:Key="UnregisteredCustomTagsHeaderText">未登録の独自タグ（このトラックのみ）</x:String>
-    <x:String x:Key="CustomTagMultiValueBadgeText">複数値保持中（編集すると単一値になります）</x:String>
     <x:String x:Key="AddCustomTagButtonText">+ 追加</x:String>
     <x:String x:Key="RemoveCustomTagButtonText">×</x:String>
     <x:String x:Key="RemoveCustomTagToolTip">この独自タグを削除</x:String>
@@ -309,7 +310,8 @@
     <x:String x:Key="YearPlaceholder">YYYY</x:String>
     <x:String x:Key="CustomTagKeyPlaceholder">キー (例: LYRICIST)</x:String>
     <x:String x:Key="CustomTagLabelPlaceholder">表示名 (任意・例: 作詞者)</x:String>
-    <x:String x:Key="CustomTagValuePlaceholder">値（空欄は保存時に書き込まれません）</x:String>
+    <x:String x:Key="CustomTagValuePlaceholder">値（複数値は「; 」区切り・空欄は保存時に書き込まれません）</x:String>
+    <x:String x:Key="CustomTagManagerCleanupToolTip">OK 確定時に、現在の定義一覧に含まれない削除済み独自タグの列設定（表示状態・並び順・幅）を settings.toml から削除します</x:String>
     <x:String x:Key="CustomTagManagerDialogTitle">独自タグ定義の管理</x:String>
     <x:String x:Key="CustomTagManagerDescriptionText">全トラック共通で編集可能にする独自タグ（Vorbis Comment）を定義します。ラベルを設定するとアプリ内の表示名として使用されます（未設定時はキー名を表示）。</x:String>
     <x:String x:Key="CustomTagManagerNoteText">※ 定義を削除または非表示にしても、FLACファイル内の既存の値は消えません（削除した定義のタグは「未登録の独自タグ」として表示されます）。</x:String>

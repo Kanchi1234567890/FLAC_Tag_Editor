@@ -256,21 +256,49 @@
                                 <StackPanel MinWidth="{DynamicResource ColumnChooserFlyoutMinWidth}"
                                             Margin="{DynamicResource ColumnChooserFlyoutPadding}"
                                             Spacing="{DynamicResource ColumnChooserItemSpacing}">
-                                    <TextBlock Text="{DynamicResource ColumnChooserTitleText}"
-                                               Foreground="{DynamicResource SectionHeaderColor}"
-                                               FontSize="{DynamicResource LabelFontSize}"
-                                               FontWeight="SemiBold"
-                                               Margin="{DynamicResource ColumnChooserHeaderMargin}"/>
-                                    <ItemsControl ItemsSource="{Binding ColumnSettings.ToggleableColumns}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:TrackGridColumnOptionViewModel">
-                                                <CheckBox Content="{Binding DisplayName}"
-                                                          IsChecked="{Binding IsVisible, Mode=TwoWay}"
-                                                          IsEnabled="{Binding CanToggle}"
-                                                          FontSize="{DynamicResource BodyFontSize}"/>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                    <ScrollViewer MaxHeight="{DynamicResource ColumnChooserFlyoutMaxHeight}"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <StackPanel Spacing="{DynamicResource ColumnChooserItemSpacing}">
+                                            <TextBlock Text="{DynamicResource ColumnChooserTitleText}"
+                                                       Foreground="{DynamicResource SectionHeaderColor}"
+                                                       FontSize="{DynamicResource LabelFontSize}"
+                                                       FontWeight="SemiBold"
+                                                       Margin="{DynamicResource ColumnChooserHeaderMargin}"/>
+                                            <ItemsControl ItemsSource="{Binding ColumnSettings.StandardToggleableColumns}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:TrackGridColumnOptionViewModel">
+                                                        <CheckBox Content="{Binding DisplayName}"
+                                                                  IsChecked="{Binding IsVisible, Mode=TwoWay}"
+                                                                  IsEnabled="{Binding CanToggle}"
+                                                                  FontSize="{DynamicResource BodyFontSize}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <StackPanel IsVisible="{Binding ColumnSettings.HasCustomTagColumns}"
+                                                        Spacing="{DynamicResource ColumnChooserItemSpacing}">
+                                                <Border Height="{DynamicResource ColumnChooserDividerHeight}"
+                                                        Background="{DynamicResource MainWindowBorderColor}"
+                                                        Margin="{DynamicResource ColumnChooserDividerMargin}"/>
+                                                <TextBlock Text="{DynamicResource ColumnChooserCustomTagsTitleText}"
+                                                           Foreground="{DynamicResource SectionHeaderColor}"
+                                                           FontSize="{DynamicResource LabelFontSize}"
+                                                           FontWeight="SemiBold"
+                                                           Margin="{DynamicResource ColumnChooserHeaderMargin}"/>
+                                                <ItemsControl ItemsSource="{Binding ColumnSettings.CustomTagToggleableColumns}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:TrackGridColumnOptionViewModel">
+                                                            <CheckBox Content="{Binding DisplayName}"
+                                                                      IsChecked="{Binding IsVisible, Mode=TwoWay}"
+                                                                      IsEnabled="{Binding CanToggle}"
+                                                                      FontSize="{DynamicResource BodyFontSize}"/>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </ScrollViewer>
                                     <Border Height="{DynamicResource ColumnChooserDividerHeight}"
                                             Background="{DynamicResource MainWindowBorderColor}"
                                             Margin="{DynamicResource ColumnChooserDividerMargin}"/>
@@ -1252,7 +1280,24 @@
                                     </StackPanel>
 
                                     <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Artist.IsVisible}">
-                                        <TextBlock Text="アーティスト" Classes="field-label"/>
+                                        <Grid ColumnDefinitions="Auto,*"
+                                              ColumnSpacing="{DynamicResource SmallItemSpacing}"
+                                              Margin="{DynamicResource FieldLabelMargin}">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="アーティスト"
+                                                       Foreground="{DynamicResource SecondaryTextColor}"
+                                                       FontSize="{DynamicResource LabelFontSize}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding ArtistMultiValueBadgeText}"
+                                                       IsVisible="{Binding HasMultipleArtists}"
+                                                       Foreground="{DynamicResource SectionHeaderColor}"
+                                                       FontSize="{DynamicResource SmallLabelFontSize}"
+                                                       HorizontalAlignment="Right"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding ArtistMultiValueBadgeText}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
                                         <TextBox Text="{Binding Artist, Mode=TwoWay}" Classes="editable-field"/>
                                     </StackPanel>
 
@@ -1262,7 +1307,24 @@
                                     </StackPanel>
 
                                     <StackPanel IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.AlbumArtist.IsVisible}">
-                                        <TextBlock Text="アルバムアーティスト" Classes="field-label"/>
+                                        <Grid ColumnDefinitions="Auto,*"
+                                              ColumnSpacing="{DynamicResource SmallItemSpacing}"
+                                              Margin="{DynamicResource FieldLabelMargin}">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="アルバムアーティスト"
+                                                       Foreground="{DynamicResource SecondaryTextColor}"
+                                                       FontSize="{DynamicResource LabelFontSize}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding AlbumArtistMultiValueBadgeText}"
+                                                       IsVisible="{Binding HasMultipleAlbumArtists}"
+                                                       Foreground="{DynamicResource SectionHeaderColor}"
+                                                       FontSize="{DynamicResource SmallLabelFontSize}"
+                                                       HorizontalAlignment="Right"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding AlbumArtistMultiValueBadgeText}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
                                         <TextBox Text="{Binding AlbumArtist, Mode=TwoWay}" Classes="editable-field"/>
                                     </StackPanel>
 
@@ -1321,7 +1383,24 @@
                                         </StackPanel>
                                         <StackPanel Grid.Column="1"
                                                     IsVisible="{Binding #RootWindow.((vm:MainWindowViewModel)DataContext).DetailPane.Genre.IsVisible}">
-                                            <TextBlock Text="ジャンル" Classes="field-label"/>
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                  ColumnSpacing="{DynamicResource SmallItemSpacing}"
+                                                  Margin="{DynamicResource FieldLabelMargin}">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="ジャンル"
+                                                           Foreground="{DynamicResource SecondaryTextColor}"
+                                                           FontSize="{DynamicResource LabelFontSize}"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding GenreMultiValueBadgeText}"
+                                                           IsVisible="{Binding HasMultipleGenres}"
+                                                           Foreground="{DynamicResource SectionHeaderColor}"
+                                                           FontSize="{DynamicResource SmallLabelFontSize}"
+                                                           HorizontalAlignment="Right"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip.Tip="{Binding GenreMultiValueBadgeText}"
+                                                           VerticalAlignment="Center"/>
+                                            </Grid>
                                             <TextBox Text="{Binding Genre, Mode=TwoWay}" Classes="editable-field"/>
                                         </StackPanel>
                                     </Grid>
@@ -1379,9 +1458,9 @@
                                                                        VerticalAlignment="Center"/>
                                                         </StackPanel>
                                                         <TextBlock Grid.Column="1"
-                                                                   Text="{DynamicResource CustomTagMultiValueBadgeText}"
-                                                                   IsVisible="{Binding HasPreservedMultipleValues}"
-                                                                   Foreground="{DynamicResource PreviewWarningTextColor}"
+                                                                   Text="{Binding MultiValueBadgeText}"
+                                                                   IsVisible="{Binding HasMultipleValues}"
+                                                                   Foreground="{DynamicResource SectionHeaderColor}"
                                                                    FontSize="{DynamicResource SmallLabelFontSize}"
                                                                    VerticalAlignment="Center"/>
                                                     </Grid>

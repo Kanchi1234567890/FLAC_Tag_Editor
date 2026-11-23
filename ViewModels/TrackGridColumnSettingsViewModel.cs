@@ -11,6 +11,7 @@ namespace FLAC_Tag_Editor.ViewModels;
 
 /// <summary>
 /// トラック一覧 DataGrid の表示列・並び順・列幅の状態管理と TOML 永続化を担う ViewModel。
+/// 標準列に加え、<c>custom_tags.toml</c> に登録された独自タグ定義を動的列として管理する。
 /// </summary>
 public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, IDisposable
 {
@@ -20,7 +21,11 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
 
     private readonly IAppSettingsService? _appSettingsService;
     private readonly Action<string>? _reportStatus;
-    private readonly Dictionary<TrackGridColumnKind, TrackGridColumnOptionViewModel> _columnsByKind;
+    private readonly List<TrackGridColumnOptionViewModel> _standardColumns;
+    private readonly List<TrackGridColumnOptionViewModel> _columns;
+    private readonly Dictionary<TrackGridColumnId, TrackGridColumnOptionViewModel> _columnsById;
+    private readonly Dictionary<string, TrackGridColumnSettings> _savedCustomColumnsByKey =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly object _saveLock = new();
 
     private Task _saveWorkerTask = Task.CompletedTask;
@@ -40,26 +45,42 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
         _appSettingsService = appSettingsService;
         _reportStatus = reportStatus;
 
-        var columns = TrackGridColumnKindExtensions.AllDefinitions
+        _standardColumns = TrackGridColumnKindExtensions.AllDefinitions
             .Select(def => new TrackGridColumnOptionViewModel(def, OnOptionVisibilityChangedByUser))
             .ToList();
 
-        Columns = columns;
-        ToggleableColumns = columns.Where(c => c.IsToggleable).ToList();
-        _columnsByKind = columns.ToDictionary(c => c.Kind);
+        _columns = new List<TrackGridColumnOptionViewModel>(_standardColumns);
+        _columnsById = _columns.ToDictionary(c => c.ColumnId);
 
+        StandardToggleableColumns = _standardColumns.Where(c => c.IsToggleable).ToList();
+        RebuildToggleableCollections();
         UpdateCanToggleStates();
     }
 
     /// <summary>
-    /// すべての列定義（変更マーク列を含む）。
+    /// 現在アクティブなすべての列定義（変更マーク列・標準列・登録済み独自タグ列）。
     /// </summary>
-    public IReadOnlyList<TrackGridColumnOptionViewModel> Columns { get; }
+    public IReadOnlyList<TrackGridColumnOptionViewModel> Columns => _columns;
 
     /// <summary>
-    /// ユーザーが表示／非表示を切り替え可能な列一覧。
+    /// ユーザーが表示／非表示を切り替え可能な全列一覧（コンテキストメニュー等向け）。
     /// </summary>
-    public IReadOnlyList<TrackGridColumnOptionViewModel> ToggleableColumns { get; }
+    public BulkObservableCollection<TrackGridColumnOptionViewModel> ToggleableColumns { get; } = [];
+
+    /// <summary>
+    /// 標準列のうち表示／非表示を切り替え可能な一覧（Flyout 標準セクション向け）。
+    /// </summary>
+    public IReadOnlyList<TrackGridColumnOptionViewModel> StandardToggleableColumns { get; }
+
+    /// <summary>
+    /// 独自タグ列のうち表示／非表示を切り替え可能な一覧（Flyout 独自タグセクション向け）。
+    /// </summary>
+    public BulkObservableCollection<TrackGridColumnOptionViewModel> CustomTagToggleableColumns { get; } = [];
+
+    /// <summary>
+    /// 登録済みの独自タグ列が 1 件以上あるかどうか。
+    /// </summary>
+    public bool HasCustomTagColumns => CustomTagToggleableColumns.Count > 0;
 
     /// <summary>
     /// 起動時の設定ファイル読み込みで構文・I/O エラーが発生したかどうか。
@@ -67,26 +88,229 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
     public bool HasLoadError => _hasLoadError;
 
     /// <summary>
-    /// View 側の DataGrid へ列設定（表示・並び順・幅）の再適用を要求するイベント。
+    /// View 側の DataGrid へ列構成・表示・並び順・幅の再適用を要求するイベント。
     /// </summary>
     public event EventHandler? LayoutRequested;
 
     /// <summary>
     /// 現在表示中の列を DisplayIndex 昇順で返す（TSV 貼り付けのフォールバック用）。
     /// </summary>
-    public IReadOnlyList<TrackGridColumnKind> GetVisibleOrderedColumns()
+    public IReadOnlyList<TrackGridColumnId> GetVisibleOrderedColumns()
     {
-        return Columns
+        return _columns
             .Where(c => c.IsVisible)
             .OrderBy(c => c.DisplayIndex)
             .ThenBy(c => c.Definition.DefaultDisplayIndex)
-            .Select(c => c.Kind)
+            .Select(c => c.ColumnId)
             .ToList();
+    }
+
+    public bool TryGetColumn(TrackGridColumnId columnId, out TrackGridColumnOptionViewModel option)
+    {
+        return _columnsById.TryGetValue(columnId, out option!);
     }
 
     public bool TryGetColumn(TrackGridColumnKind kind, out TrackGridColumnOptionViewModel option)
     {
-        return _columnsByKind.TryGetValue(kind, out option!);
+        if (kind == TrackGridColumnKind.CustomTag)
+        {
+            option = null!;
+            return false;
+        }
+
+        return _columnsById.TryGetValue(TrackGridColumnId.ForStandard(kind), out option!);
+    }
+
+    /// <summary>
+    /// <c>settings.toml</c> に保持されている独自タグ列設定のキー一覧を返す（削除済み定義の保持分を含む）。
+    /// </summary>
+    public IReadOnlyList<string> GetSavedCustomColumnKeys()
+    {
+        return _savedCustomColumnsByKey.Keys
+            .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
+    /// 独自タグ定義カタログの変更に合わせて動的列を追加・更新・除外する。
+    /// 削除された独自タグの列設定は <c>_savedCustomColumnsByKey</c> に保持し、再登録時の復元に備える。
+    /// </summary>
+    public void SyncCustomTagDefinitions(IReadOnlyList<CustomTagDefinition> definitions)
+    {
+        ArgumentNullException.ThrowIfNull(definitions);
+        if (_disposed)
+        {
+            return;
+        }
+
+        // 現在アクティブな独自タグ列のうち、既に保存対象またはカスタマイズ済みの状態を退避する
+        var existingCustomOptions = new Dictionary<string, TrackGridColumnOptionViewModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var option in _columns)
+        {
+            if (!option.IsCustomTag || string.IsNullOrWhiteSpace(option.CustomTagKey))
+            {
+                continue;
+            }
+
+            existingCustomOptions.TryAdd(option.CustomTagKey, option);
+            if (_savedCustomColumnsByKey.ContainsKey(option.CustomTagKey)
+                || option.IsVisible != option.Definition.DefaultVisible
+                || option.DisplayIndex != option.Definition.DefaultDisplayIndex
+                || Math.Abs(option.Width - option.Definition.DefaultWidth) >= WidthChangeTolerance)
+            {
+                _savedCustomColumnsByKey[option.CustomTagKey] = option.ToSettings();
+            }
+        }
+
+        var previousCustomKeyOrder = _columns
+            .Where(c => c.IsCustomTag && !string.IsNullOrWhiteSpace(c.CustomTagKey))
+            .Select(c => c.CustomTagKey!)
+            .ToList();
+
+        var standardCount = _standardColumns.Count;
+        var nextColumns = new List<TrackGridColumnOptionViewModel>(standardCount + definitions.Count);
+        nextColumns.AddRange(_standardColumns);
+
+        var nextCustomOptions = new List<TrackGridColumnOptionViewModel>(definitions.Count);
+        var restoredOptions = new HashSet<TrackGridColumnOptionViewModel>();
+        var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var i = 0; i < definitions.Count; i++)
+        {
+            var customDef = definitions[i];
+            var key = customDef.Key?.Trim() ?? string.Empty;
+            if (key.Length == 0 || !seenKeys.Add(key))
+            {
+                continue;
+            }
+
+            var colDef = TrackGridColumnKindExtensions.CreateCustomTagColumnDefinition(
+                customDef,
+                defaultDisplayIndex: standardCount + nextCustomOptions.Count);
+
+            TrackGridColumnOptionViewModel option;
+            if (existingCustomOptions.TryGetValue(key, out var reusable))
+            {
+                reusable.UpdateDefinition(colDef);
+                option = reusable;
+            }
+            else
+            {
+                option = new TrackGridColumnOptionViewModel(colDef, OnOptionVisibilityChangedByUser);
+                if (_savedCustomColumnsByKey.TryGetValue(key, out var saved))
+                {
+                    option.SetStateSilently(
+                        saved.IsVisible,
+                        saved.DisplayIndex,
+                        colDef.ClampWidth(saved.Width));
+                    restoredOptions.Add(option);
+                }
+                else
+                {
+                    var fallbackIndex = nextColumns.Count + nextCustomOptions.Count;
+                    option.SetStateSilently(
+                        colDef.DefaultVisible,
+                        fallbackIndex,
+                        colDef.DefaultWidth);
+                }
+            }
+
+            nextCustomOptions.Add(option);
+        }
+
+        nextColumns.AddRange(nextCustomOptions);
+
+        // トグル可能な列がすべて非表示になってしまった場合は標準列の既定表示へフォールバック
+        if (nextColumns.Where(c => c.IsToggleable).All(c => !c.IsVisible))
+        {
+            foreach (var option in _standardColumns)
+            {
+                option.SetIsVisibleSilently(option.Definition.DefaultVisible);
+            }
+        }
+
+        // DisplayIndex を 0..N-1 の一意な連番へ正規化
+        // 再登録で復元された列は、削除時に同位置へ繰り上がった既存列より前に挿入して元の位置を復元する
+        var ordered = nextColumns
+            .OrderBy(c => c.DisplayIndex)
+            .ThenBy(c => restoredOptions.Contains(c) ? 0 : 1)
+            .ThenBy(c => c.Definition.DefaultDisplayIndex)
+            .ToList();
+
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var option = ordered[i];
+            if (option.DisplayIndex != i)
+            {
+                option.SetStateSilently(option.IsVisible, i, option.Width);
+            }
+        }
+
+        _columns.Clear();
+        _columns.AddRange(nextColumns);
+
+        _columnsById.Clear();
+        foreach (var option in _columns)
+        {
+            _columnsById[option.ColumnId] = option;
+        }
+
+        RebuildToggleableCollections();
+        UpdateCanToggleStates();
+        LayoutRequested?.Invoke(this, EventArgs.Empty);
+
+        var nextCustomKeyOrder = nextCustomOptions
+            .Select(c => c.CustomTagKey!)
+            .ToList();
+        var customColumnSetChanged = previousCustomKeyOrder.Count != nextCustomKeyOrder.Count
+            || !previousCustomKeyOrder
+                .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
+                .SequenceEqual(
+                    nextCustomKeyOrder.OrderBy(k => k, StringComparer.OrdinalIgnoreCase),
+                    StringComparer.OrdinalIgnoreCase);
+
+        if (customColumnSetChanged && _isInitialized && !_hasLoadError)
+        {
+            UpdateSavedCustomColumnsCache(onlyAlreadySavedOrActive: true);
+            ScheduleSave(immediate: false);
+        }
+    }
+
+    /// <summary>
+    /// 現在定義されている独自タグキー以外の削除済み独自タグ列設定を <c>settings.toml</c> からクリーンアップする。
+    /// </summary>
+    /// <returns>削除した未使用列設定の件数。</returns>
+    public int CleanupUnusedCustomColumnSettings(IEnumerable<string> activeCustomTagKeys)
+    {
+        ArgumentNullException.ThrowIfNull(activeCustomTagKeys);
+        if (_disposed)
+        {
+            return 0;
+        }
+
+        var activeKeySet = new HashSet<string>(
+            activeCustomTagKeys
+                .Where(k => !string.IsNullOrWhiteSpace(k))
+                .Select(k => k.Trim()),
+            StringComparer.OrdinalIgnoreCase);
+
+        var keysToRemove = _savedCustomColumnsByKey.Keys
+            .Where(k => !activeKeySet.Contains(k))
+            .ToList();
+
+        if (keysToRemove.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var key in keysToRemove)
+        {
+            _savedCustomColumnsByKey.Remove(key);
+        }
+
+        _hasLoadError = false;
+        ScheduleSave(immediate: true);
+        return keysToRemove.Count;
     }
 
     /// <summary>
@@ -161,23 +385,24 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
             return;
         }
 
-        var snapshotByKind = new Dictionary<TrackGridColumnKind, TrackGridColumnSettings>();
+        var snapshotById = new Dictionary<TrackGridColumnId, TrackGridColumnSettings>();
         foreach (var entry in snapshots)
         {
-            if (TrackGridColumnKindExtensions.TryGetDefinitionByKey(entry.Key, out var def))
+            if (TrackGridColumnId.TryParseSettingKey(entry.Key, out var colId)
+                && _columnsById.ContainsKey(colId))
             {
-                snapshotByKind[def.Kind] = entry;
+                snapshotById[colId] = entry;
             }
         }
 
-        if (snapshotByKind.Count == 0)
+        if (snapshotById.Count == 0)
         {
             return;
         }
 
         // 並び順を 0..N-1 に正規化
-        var orderedOptions = Columns
-            .OrderBy(opt => snapshotByKind.TryGetValue(opt.Kind, out var snap)
+        var orderedOptions = _columns
+            .OrderBy(opt => snapshotById.TryGetValue(opt.ColumnId, out var snap)
                 ? snap.DisplayIndex
                 : opt.DisplayIndex)
             .ThenBy(opt => opt.DisplayIndex)
@@ -191,7 +416,7 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
             var newDisplayIndex = i;
             var newWidth = option.Width;
 
-            if (snapshotByKind.TryGetValue(option.Kind, out var snap)
+            if (snapshotById.TryGetValue(option.ColumnId, out var snap)
                 && option.CanResize
                 && option.IsVisible
                 && double.IsFinite(snap.Width)
@@ -217,6 +442,7 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
             return;
         }
 
+        UpdateSavedCustomColumnsCache();
         _hasLoadError = false;
         ScheduleSave(immediate: false);
     }
@@ -230,6 +456,7 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
         }
 
         ApplyDefaultState();
+        UpdateSavedCustomColumnsCache();
         LayoutRequested?.Invoke(this, EventArgs.Empty);
 
         _hasLoadError = false;
@@ -239,16 +466,34 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
 
     /// <summary>
     /// 現在の列設定から永続化用の <see cref="TrackGridSettings"/> スナップショットを構築する。
+    /// 削除済み独自タグの保持済み列設定も末尾へ残して出力する。
     /// </summary>
     public TrackGridSettings BuildTrackGridSettingsSnapshot()
     {
+        var activeSettings = _columns
+            .OrderBy(c => c.DisplayIndex)
+            .ThenBy(c => c.Definition.DefaultDisplayIndex)
+            .Select(c => c.ToSettings())
+            .ToList();
+
+        var activeCustomKeySet = new HashSet<string>(
+            _columns
+                .Where(c => c.IsCustomTag && !string.IsNullOrWhiteSpace(c.CustomTagKey))
+                .Select(c => c.CustomTagKey!),
+            StringComparer.OrdinalIgnoreCase);
+
+        var orphanedSettings = _savedCustomColumnsByKey
+            .Where(pair => !activeCustomKeySet.Contains(pair.Key))
+            .OrderBy(pair => pair.Value.DisplayIndex)
+            .ThenBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(pair => CloneColumnSettings(pair.Value))
+            .ToList();
+
+        activeSettings.AddRange(orphanedSettings);
+
         return new TrackGridSettings
         {
-            Columns = Columns
-                .OrderBy(c => c.DisplayIndex)
-                .ThenBy(c => c.Definition.DefaultDisplayIndex)
-                .Select(c => c.ToSettings())
-                .ToList()
+            Columns = activeSettings
         };
     }
 
@@ -318,6 +563,7 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
             return;
         }
 
+        UpdateSavedCustomColumnsCache();
         UpdateCanToggleStates();
         LayoutRequested?.Invoke(this, EventArgs.Empty);
 
@@ -327,7 +573,7 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
 
     private void ApplyDefaultState()
     {
-        foreach (var option in Columns)
+        foreach (var option in _columns)
         {
             option.SetStateSilently(
                 option.Definition.DefaultVisible,
@@ -340,7 +586,9 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
 
     private void ApplyNormalizedSettings(AppSettings? settings)
     {
-        var savedByKind = new Dictionary<TrackGridColumnKind, TrackGridColumnSettings>();
+        var savedById = new Dictionary<TrackGridColumnId, TrackGridColumnSettings>();
+        _savedCustomColumnsByKey.Clear();
+
         if (settings?.TrackGrid?.Columns is { Count: > 0 } savedColumns)
         {
             foreach (var entry in savedColumns)
@@ -350,27 +598,30 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
                     continue;
                 }
 
-                if (TrackGridColumnKindExtensions.TryGetDefinitionByKey(entry.Key, out var def))
+                if (TrackGridColumnId.TryParseSettingKey(entry.Key, out var colId))
                 {
                     // 重複キーは先勝ち
-                    savedByKind.TryAdd(def.Kind, entry);
+                    if (savedById.TryAdd(colId, entry) && colId.IsCustomTag && colId.CustomTagKey is not null)
+                    {
+                        _savedCustomColumnsByKey[colId.CustomTagKey] = CloneColumnSettings(entry);
+                    }
                 }
             }
         }
 
-        if (savedByKind.Count == 0)
+        if (savedById.Count == 0)
         {
             ApplyDefaultState();
             return;
         }
 
         // 各列の目標状態（欠損列は既定値で末尾側へ補完）
-        var fallbackOrderBase = TrackGridColumnKindExtensions.AllDefinitions.Count;
-        var resolved = new List<(TrackGridColumnOptionViewModel Option, bool IsVisible, int RawOrder, double Width)>(Columns.Count);
+        var fallbackOrderBase = Math.Max(_columns.Count, savedById.Values.Max(v => v.DisplayIndex) + 1);
+        var resolved = new List<(TrackGridColumnOptionViewModel Option, bool IsVisible, int RawOrder, double Width)>(_columns.Count);
 
-        foreach (var option in Columns)
+        foreach (var option in _columns)
         {
-            if (savedByKind.TryGetValue(option.Kind, out var saved))
+            if (savedById.TryGetValue(option.ColumnId, out var saved))
             {
                 var visible = option.IsToggleable ? saved.IsVisible : true;
                 var width = option.Definition.ClampWidth(saved.Width);
@@ -408,7 +659,43 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
             item.Option.SetStateSilently(item.IsVisible, i, item.Width);
         }
 
+        UpdateSavedCustomColumnsCache(onlyAlreadySavedOrActive: true);
         UpdateCanToggleStates();
+    }
+
+    private void UpdateSavedCustomColumnsCache(bool onlyAlreadySavedOrActive = false)
+    {
+        foreach (var option in _columns)
+        {
+            if (!option.IsCustomTag || string.IsNullOrWhiteSpace(option.CustomTagKey))
+            {
+                continue;
+            }
+
+            if (onlyAlreadySavedOrActive && !_savedCustomColumnsByKey.ContainsKey(option.CustomTagKey))
+            {
+                continue;
+            }
+
+            _savedCustomColumnsByKey[option.CustomTagKey] = option.ToSettings();
+        }
+    }
+
+    private void RebuildToggleableCollections()
+    {
+        var customToggleable = _columns
+            .Where(c => c.IsCustomTag && c.IsToggleable)
+            .ToList();
+
+        CustomTagToggleableColumns.ReplaceAll(customToggleable);
+
+        var allToggleable = new List<TrackGridColumnOptionViewModel>(
+            StandardToggleableColumns.Count + customToggleable.Count);
+        allToggleable.AddRange(StandardToggleableColumns);
+        allToggleable.AddRange(customToggleable);
+        ToggleableColumns.ReplaceAll(allToggleable);
+
+        OnPropertyChanged(nameof(HasCustomTagColumns));
     }
 
     private void UpdateCanToggleStates()
@@ -418,6 +705,17 @@ public sealed partial class TrackGridColumnSettingsViewModel : ViewModelBase, ID
         {
             option.CanToggle = !option.IsVisible || visibleToggleableCount > 1;
         }
+    }
+
+    private static TrackGridColumnSettings CloneColumnSettings(TrackGridColumnSettings source)
+    {
+        return new TrackGridColumnSettings
+        {
+            Key = source.Key,
+            IsVisible = source.IsVisible,
+            DisplayIndex = source.DisplayIndex,
+            Width = source.Width
+        };
     }
 
     private void ScheduleSave(bool immediate)
