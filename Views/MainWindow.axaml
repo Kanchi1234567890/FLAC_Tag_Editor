@@ -172,6 +172,68 @@
             <Setter Property="MinHeight" Value="{DynamicResource CompactButtonMinHeight}"/>
             <Setter Property="FontSize" Value="{DynamicResource LabelFontSize}"/>
         </Style>
+        <Style Selector="Button.player-transport">
+            <Setter Property="Width" Value="{DynamicResource PlayerTransportButtonSize}"/>
+            <Setter Property="Height" Value="{DynamicResource PlayerTransportButtonSize}"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.player-primary">
+            <Setter Property="Width" Value="{DynamicResource PlayerPlayPauseButtonSize}"/>
+            <Setter Property="Height" Value="{DynamicResource PlayerPlayPauseButtonSize}"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+            <Setter Property="Background" Value="{DynamicResource PlayerPrimaryButtonBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PlayerPrimaryButtonBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.player-mute">
+            <Setter Property="Width" Value="{DynamicResource PlayerMuteButtonSize}"/>
+            <Setter Property="Height" Value="{DynamicResource PlayerMuteButtonSize}"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.player-select-play">
+            <Setter Property="Background" Value="{DynamicResource PlayerPrimaryButtonBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PlayerPrimaryButtonBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+            <Setter Property="Padding" Value="{DynamicResource PlayerSelectPlayButtonPadding}"/>
+            <Setter Property="MinHeight" Value="{DynamicResource CompactButtonMinHeight}"/>
+            <Setter Property="FontSize" Value="{DynamicResource LabelFontSize}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.player-status-badge">
+            <Setter Property="Background" Value="{DynamicResource PlayerStatusBadgeBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PlayerStatusBadgeBorderColor}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThinBorderThickness}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource DefaultCornerRadius}"/>
+            <Setter Property="Padding" Value="{DynamicResource PlayerStatusBadgePadding}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.player-status-badge.playing">
+            <Setter Property="Background" Value="{DynamicResource PlayerStatusPlayingBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PlayerStatusPlayingBorderColor}"/>
+        </Style>
+        <Style Selector="Border.player-status-badge.paused">
+            <Setter Property="Background" Value="{DynamicResource PlayerStatusPausedBackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PlayerStatusPausedBorderColor}"/>
+        </Style>
     </Window.Styles>
 
     <Design.DataContext>
@@ -374,6 +436,182 @@
                     <TextBlock Text="{Binding TrackCountText}"
                                Foreground="{DynamicResource SecondaryTextColor}"
                                FontSize="{DynamicResource StatusFontSize}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 下部簡易 FLAC プレーヤーバー -->
+        <Border DockPanel.Dock="Bottom"
+                DataContext="{Binding AudioPlayer}"
+                x:DataType="vm:AudioPlayerViewModel"
+                Background="{DynamicResource PlayerBarBackgroundColor}"
+                BorderBrush="{DynamicResource MainWindowBorderColor}"
+                BorderThickness="{DynamicResource TopBorderThickness}"
+                Padding="{DynamicResource PlayerBarPadding}">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto"
+                  ColumnSpacing="{DynamicResource PlayerBarSectionSpacing}">
+                <!-- 再生・一時停止・停止・前/次トラック -->
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            Spacing="{DynamicResource PlayerControlSpacing}"
+                            VerticalAlignment="Center">
+                    <Button Classes="player-transport"
+                            Command="{Binding PreviousTrackCommand}"
+                            ToolTip.Tip="{DynamicResource PlayerPreviousToolTip}">
+                        <PathIcon Data="{DynamicResource PlayerPreviousIconGeometry}"
+                                  Width="{DynamicResource PlayerIconSize}"
+                                  Height="{DynamicResource PlayerIconSize}"/>
+                    </Button>
+
+                    <Button Classes="player-primary"
+                            Command="{Binding PlayPauseCommand}"
+                            ToolTip.Tip="{Binding PlayPauseToolTip}">
+                        <Panel>
+                            <PathIcon Data="{DynamicResource PlayerPlayIconGeometry}"
+                                      IsVisible="{Binding !IsPlaying}"
+                                      Width="{DynamicResource PlayerPlayIconSize}"
+                                      Height="{DynamicResource PlayerPlayIconSize}"/>
+                            <PathIcon Data="{DynamicResource PlayerPauseIconGeometry}"
+                                      IsVisible="{Binding IsPlaying}"
+                                      Width="{DynamicResource PlayerPlayIconSize}"
+                                      Height="{DynamicResource PlayerPlayIconSize}"/>
+                        </Panel>
+                    </Button>
+
+                    <Button Classes="player-transport"
+                            Command="{Binding StopCommand}"
+                            ToolTip.Tip="{DynamicResource PlayerStopToolTip}">
+                        <PathIcon Data="{DynamicResource PlayerStopIconGeometry}"
+                                  Width="{DynamicResource PlayerIconSize}"
+                                  Height="{DynamicResource PlayerIconSize}"/>
+                    </Button>
+
+                    <Button Classes="player-transport"
+                            Command="{Binding NextTrackCommand}"
+                            ToolTip.Tip="{DynamicResource PlayerNextToolTip}">
+                        <PathIcon Data="{DynamicResource PlayerNextIconGeometry}"
+                                  Width="{DynamicResource PlayerIconSize}"
+                                  Height="{DynamicResource PlayerIconSize}"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- 再生中トラック情報 + 別行選択時の「選択曲を再生」ボタン -->
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="{DynamicResource DetailItemSpacing}"
+                            VerticalAlignment="Center">
+                    <StackPanel MinWidth="{DynamicResource PlayerTrackInfoMinWidth}"
+                                MaxWidth="{DynamicResource PlayerTrackInfoMaxWidth}"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="{Binding PlayingTrackToolTip}">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="{DynamicResource SmallItemSpacing}">
+                            <Border Classes="player-status-badge"
+                                    Classes.playing="{Binding IsPlaying}"
+                                    Classes.paused="{Binding IsPaused}"
+                                    IsVisible="{Binding HasPlayingStatusBadge}">
+                                <TextBlock Text="{Binding PlayingStatusBadgeText}"
+                                           Foreground="{DynamicResource TextColor}"
+                                           FontSize="{DynamicResource SmallLabelFontSize}"
+                                           FontWeight="SemiBold"/>
+                            </Border>
+                            <TextBlock Text="{Binding PlayingTrackTitleDisplay}"
+                                       Foreground="{DynamicResource TextColor}"
+                                       FontSize="{DynamicResource BodyFontSize}"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding PlayingTrackSubTextDisplay}"
+                                   Foreground="{DynamicResource SecondaryTextColor}"
+                                   FontSize="{DynamicResource LabelFontSize}"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+
+                    <Button Classes="player-select-play"
+                            IsVisible="{Binding HasDifferentSelectedTrack}"
+                            Command="{Binding PlaySelectedTrackCommand}"
+                            ToolTip.Tip="{Binding PlaySelectedTrackToolTip}">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="{DynamicResource PlayerControlSpacing}"
+                                    VerticalAlignment="Center">
+                            <PathIcon Data="{DynamicResource PlayerPlayIconGeometry}"
+                                      Width="{DynamicResource PlayerMiniIconSize}"
+                                      Height="{DynamicResource PlayerMiniIconSize}"/>
+                            <TextBlock Text="{DynamicResource PlayerPlaySelectedButtonText}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- シークバー・経過／総時間 -->
+                <Grid Grid.Column="2"
+                      ColumnDefinitions="Auto,*,Auto"
+                      ColumnSpacing="{DynamicResource PlayerSeekSpacing}"
+                      VerticalAlignment="Center">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding CurrentTimeText}"
+                               MinWidth="{DynamicResource PlayerTimeTextMinWidth}"
+                               TextAlignment="Right"
+                               Foreground="{DynamicResource TextColor}"
+                               FontSize="{DynamicResource LabelFontSize}"
+                               VerticalAlignment="Center"/>
+
+                    <Slider Grid.Column="1"
+                            Minimum="0"
+                            Maximum="{Binding SliderMaximum}"
+                            Value="{Binding PositionSeconds, Mode=TwoWay}"
+                            SmallChange="5"
+                            LargeChange="15"
+                            IsEnabled="{Binding CanSeek}"
+                            MinWidth="{DynamicResource PlayerSeekSliderMinWidth}"
+                            VerticalAlignment="Center"
+                            views:SliderSeekBehavior.SeekHandler="{Binding}"/>
+
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding TotalTimeText}"
+                               MinWidth="{DynamicResource PlayerTimeTextMinWidth}"
+                               TextAlignment="Left"
+                               Foreground="{DynamicResource SecondaryTextColor}"
+                               FontSize="{DynamicResource LabelFontSize}"
+                               VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- ミュート・音量調整 -->
+                <StackPanel Grid.Column="3"
+                            Orientation="Horizontal"
+                            Spacing="{DynamicResource SmallItemSpacing}"
+                            VerticalAlignment="Center">
+                    <Button Classes="player-mute"
+                            Command="{Binding ToggleMuteCommand}"
+                            ToolTip.Tip="{Binding MuteToolTip}">
+                        <Panel>
+                            <PathIcon Data="{DynamicResource PlayerVolumeIconGeometry}"
+                                      IsVisible="{Binding !IsMuted}"
+                                      Width="{DynamicResource PlayerIconSize}"
+                                      Height="{DynamicResource PlayerIconSize}"/>
+                            <PathIcon Data="{DynamicResource PlayerMuteIconGeometry}"
+                                      IsVisible="{Binding IsMuted}"
+                                      Width="{DynamicResource PlayerIconSize}"
+                                      Height="{DynamicResource PlayerIconSize}"/>
+                        </Panel>
+                    </Button>
+
+                    <Slider Minimum="0"
+                            Maximum="1"
+                            SmallChange="0.05"
+                            LargeChange="0.1"
+                            Value="{Binding Volume, Mode=TwoWay}"
+                            Width="{DynamicResource PlayerVolumeSliderWidth}"
+                            VerticalAlignment="Center"
+                            ToolTip.Tip="{DynamicResource PlayerVolumeSliderToolTip}"/>
+
+                    <TextBlock Text="{Binding VolumePercentText}"
+                               MinWidth="{DynamicResource PlayerVolumeTextMinWidth}"
+                               TextAlignment="Right"
+                               Foreground="{DynamicResource SecondaryTextColor}"
+                               FontSize="{DynamicResource LabelFontSize}"
                                VerticalAlignment="Center"/>
                 </StackPanel>
             </Grid>
@@ -710,6 +948,9 @@
                               views:DataGridColumnSettingsBehavior.ColumnSettings="{Binding ColumnSettings}">
                     <DataGrid.ContextMenu>
                         <ContextMenu>
+                            <MenuItem Header="{DynamicResource PlaySelectedTrackContextMenuText}"
+                                      Command="{Binding AudioPlayer.PlaySelectedTrackCommand}"/>
+                            <Separator/>
                             <MenuItem Header="{DynamicResource PasteTsvContextMenuText}"
                                       Command="{Binding #TracksDataGrid.(views:DataGridPasteBehavior.TriggerPasteCommand)}"/>
                             <Separator/>

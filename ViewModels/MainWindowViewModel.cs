@@ -48,6 +48,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     private readonly ITextSearchReplaceService _textSearchReplaceService;
     private readonly IAppSettingsService? _appSettingsService;
     private readonly ICustomTagDefinitionService? _customTagDefinitionService;
+    private readonly IAudioPlayerService? _audioPlayerService;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _saveCts;
     private CancellationTokenSource? _artworkCts;
@@ -182,6 +183,10 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         CustomTagCatalog.DefinitionsChanged += OnCustomTagDefinitionsChanged;
         ColumnSettings.SyncCustomTagDefinitions(CustomTagCatalog.GetSnapshot());
         SearchReplace = CreateSearchReplaceViewModel();
+        AudioPlayer = new AudioPlayerViewModel(
+            getDisplayedTracks: () => DisplayedTracks,
+            getSelectedTrack: () => SelectedTrack,
+            isBusy: () => IsBusy);
         SelectedTracks.CollectionChanged += OnSelectedTracksCollectionChanged;
 
         var sampleTrack = new FlacTrack
@@ -219,6 +224,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         SelectedTrack = Tracks[0];
         ReplaceSelectedTracks([Tracks[0]]);
         SearchReplace.RefreshTargetOptions(refreshResultsIfSelectionChanged: false);
+        AudioPlayer.NotifyExternalContextChanged();
         CurrentSourcePath = @"C:\Music\Sample Album";
         StatusMessage = "1 件のFLACファイルを読み込みました";
     }
@@ -233,7 +239,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         ITsvPasteService tsvPasteService,
         ITextSearchReplaceService textSearchReplaceService,
         IAppSettingsService appSettingsService,
-        ICustomTagDefinitionService customTagDefinitionService)
+        ICustomTagDefinitionService customTagDefinitionService,
+        IAudioPlayerService audioPlayerService)
     {
         _flacTagService = flacTagService ?? throw new ArgumentNullException(nameof(flacTagService));
         _fileDialogService = fileDialogService ?? throw new ArgumentNullException(nameof(fileDialogService));
@@ -244,12 +251,20 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         _textSearchReplaceService = textSearchReplaceService ?? throw new ArgumentNullException(nameof(textSearchReplaceService));
         _appSettingsService = appSettingsService ?? throw new ArgumentNullException(nameof(appSettingsService));
         _customTagDefinitionService = customTagDefinitionService ?? throw new ArgumentNullException(nameof(customTagDefinitionService));
+        _audioPlayerService = audioPlayerService ?? throw new ArgumentNullException(nameof(audioPlayerService));
 
         ColumnSettings = new TrackGridColumnSettingsViewModel(_appSettingsService, message => StatusMessage = message);
         DetailPane = new DetailPaneLayoutViewModel(_appSettingsService, message => StatusMessage = message);
         CustomTagCatalog = new CustomTagCatalogViewModel(_customTagDefinitionService, message => StatusMessage = message);
         CustomTagCatalog.DefinitionsChanged += OnCustomTagDefinitionsChanged;
         SearchReplace = CreateSearchReplaceViewModel();
+        AudioPlayer = new AudioPlayerViewModel(
+            audioPlayerService: _audioPlayerService,
+            appSettingsService: _appSettingsService,
+            getDisplayedTracks: () => DisplayedTracks,
+            getSelectedTrack: () => SelectedTrack,
+            isBusy: () => IsBusy,
+            reportStatus: message => StatusMessage = message);
 
         SelectedTracks.CollectionChanged += OnSelectedTracksCollectionChanged;
         _settingsLoadCts = new CancellationTokenSource();
@@ -269,6 +284,8 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     public DetailPaneLayoutViewModel DetailPane { get; }
 
     public CustomTagCatalogViewModel CustomTagCatalog { get; }
+
+    public AudioPlayerViewModel AudioPlayer { get; }
 
     public bool IsBusy => IsLoading || IsSaving || IsArtworkLoading;
 
@@ -382,6 +399,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         ColumnSettings.FlushPendingSaveSync();
         DetailPane.FlushPendingSaveSync();
         CustomTagCatalog.FlushPendingSaveSync();
+        AudioPlayer.FlushPendingSaveSync();
     }
 
     [RelayCommand(CanExecute = nameof(CanOpen))]
@@ -889,6 +907,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         await CustomTagCatalog.LoadAsync(cancellationToken);
         await ColumnSettings.LoadAsync(cancellationToken);
         await DetailPane.LoadAsync(cancellationToken);
+        await AudioPlayer.LoadAsync(cancellationToken);
     }
 
     private void OnCustomTagDefinitionsChanged(object? sender, EventArgs e)
@@ -966,6 +985,9 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             ? $"{targetTracks[0].FileName} を保存中..."
             : $"{targetTracks.Count} 件のFLACファイルを保存中...";
 
+        var playbackSnapshot = AudioPlayer.SuspendForFileModification(targetTracks.Select(t => t.FilePath));
+        var savedTrackItemsByOriginalPath = new Dictionary<string, TrackItemViewModel>(StringComparer.OrdinalIgnoreCase);
+
         try
         {
             var editedTracks = targetTracks.Select(t => t.BuildEditedTrack()).ToList();
@@ -992,9 +1014,11 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
             {
                 foreach (var item in targetTracks)
                 {
-                    if (savedByOriginalPath.TryGetValue(item.FilePath, out var savedTrack))
+                    var originalPath = item.FilePath;
+                    if (savedByOriginalPath.TryGetValue(originalPath, out var savedTrack))
                     {
                         item.AcceptChanges(savedTrack);
+                        savedTrackItemsByOriginalPath[originalPath] = item;
                     }
                 }
             }
@@ -1038,6 +1062,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         finally
         {
             IsSaving = false;
+            AudioPlayer.ResumeAfterFileModification(playbackSnapshot, savedTrackItemsByOriginalPath);
         }
     }
 
@@ -1452,6 +1477,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
 
     private void ClearTracks()
     {
+        AudioPlayer.ResetForTracksCleared();
         ReplaceSelectedTracks([]);
         SelectedTrack = null;
         DisplayedTracks.Clear();
@@ -1527,6 +1553,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     {
         UpdateSelectionDerivedState();
         SearchReplace.NotifyCommandStates();
+        AudioPlayer.NotifyExternalContextChanged();
     }
 
     private void OnSelectedTracksCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -1543,16 +1570,19 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
     partial void OnIsLoadingChanged(bool value)
     {
         SearchReplace.NotifyCommandStates();
+        AudioPlayer.NotifyExternalContextChanged();
     }
 
     partial void OnIsSavingChanged(bool value)
     {
         SearchReplace.NotifyCommandStates();
+        AudioPlayer.NotifyExternalContextChanged();
     }
 
     partial void OnIsArtworkLoadingChanged(bool value)
     {
         SearchReplace.NotifyCommandStates();
+        AudioPlayer.NotifyExternalContextChanged();
     }
 
     private void RefreshDirtyState()
@@ -1798,6 +1828,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         OnPropertyChanged(nameof(IsFilterEmpty));
         OnPropertyChanged(nameof(TrackCountText));
         SearchReplace.NotifyCommandStates();
+        AudioPlayer.NotifyExternalContextChanged();
     }
 
     private void ValidateDuplicateFileNames()
@@ -2161,6 +2192,7 @@ public partial class MainWindowViewModel : ViewModelBase, IWindowCloseGuard, IDi
         ColumnSettings.Dispose();
         DetailPane.Dispose();
         CustomTagCatalog.Dispose();
+        AudioPlayer.Dispose();
 
         ClearTracks();
     }

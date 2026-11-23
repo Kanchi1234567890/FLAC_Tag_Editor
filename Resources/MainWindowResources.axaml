@@ -60,6 +60,24 @@
     <SolidColorBrush x:Key="ArtworkThumbHoverBackgroundColor" Color="#22FFFFFF"/>
     <SolidColorBrush x:Key="SyncButtonBackgroundColor" Color="#FF2B4C7E"/>
     <SolidColorBrush x:Key="SyncButtonBorderColor" Color="#FF78B7FF"/>
+    <SolidColorBrush x:Key="PlayerBarBackgroundColor" Color="#FF222226"/>
+    <SolidColorBrush x:Key="PlayerPrimaryButtonBackgroundColor" Color="#FF2B4C7E"/>
+    <SolidColorBrush x:Key="PlayerPrimaryButtonBorderColor" Color="#FF78B7FF"/>
+    <SolidColorBrush x:Key="PlayerStatusBadgeBackgroundColor" Color="#26FFFFFF"/>
+    <SolidColorBrush x:Key="PlayerStatusBadgeBorderColor" Color="#55A6A6AE"/>
+    <SolidColorBrush x:Key="PlayerStatusPlayingBackgroundColor" Color="#3378B7FF"/>
+    <SolidColorBrush x:Key="PlayerStatusPlayingBorderColor" Color="#8878B7FF"/>
+    <SolidColorBrush x:Key="PlayerStatusPausedBackgroundColor" Color="#33FFC857"/>
+    <SolidColorBrush x:Key="PlayerStatusPausedBorderColor" Color="#88FFC857"/>
+
+    <!-- Player Vector Icons (24x24 closed paths) -->
+    <StreamGeometry x:Key="PlayerPlayIconGeometry">M8,5.14V19.14L19,12.14L8,5.14Z</StreamGeometry>
+    <StreamGeometry x:Key="PlayerPauseIconGeometry">M14,19H18V5H14M6,19H10V5H6V19Z</StreamGeometry>
+    <StreamGeometry x:Key="PlayerStopIconGeometry">M6,6H18V18H6V6Z</StreamGeometry>
+    <StreamGeometry x:Key="PlayerPreviousIconGeometry">M6,18V6H8V18H6M9.5,12L18,6V18L9.5,12Z</StreamGeometry>
+    <StreamGeometry x:Key="PlayerNextIconGeometry">M16,18H18V6H16M6,18L14.5,12L6,6V18Z</StreamGeometry>
+    <StreamGeometry x:Key="PlayerVolumeIconGeometry">M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z</StreamGeometry>
+    <StreamGeometry x:Key="PlayerMuteIconGeometry">M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.45 16.63,19.82 17.68,18.96L19.73,21L21,19.73L12,10.73M19,12C19,12.94 18.8,13.82 18.46,14.64L19.97,16.15C20.62,14.91 21,13.5 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.5,12.43 16.5,12.21 16.5,12Z</StreamGeometry>
 
     <!-- Layout Sizes -->
     <GridLength x:Key="DetailPaneInitialWidth">380</GridLength>
@@ -108,6 +126,18 @@
     <x:Double x:Key="CustomTagManagerVisibleColWidth">48</x:Double>
     <x:Double x:Key="CustomTagManagerOrderHeaderWidth">90</x:Double>
     <x:Double x:Key="CustomTagManagerActionButtonWidth">26</x:Double>
+    <x:Double x:Key="PlayerTransportButtonSize">30</x:Double>
+    <x:Double x:Key="PlayerPlayPauseButtonSize">34</x:Double>
+    <x:Double x:Key="PlayerMuteButtonSize">28</x:Double>
+    <x:Double x:Key="PlayerIconSize">13</x:Double>
+    <x:Double x:Key="PlayerPlayIconSize">14</x:Double>
+    <x:Double x:Key="PlayerMiniIconSize">10</x:Double>
+    <x:Double x:Key="PlayerTrackInfoMinWidth">150</x:Double>
+    <x:Double x:Key="PlayerTrackInfoMaxWidth">260</x:Double>
+    <x:Double x:Key="PlayerTimeTextMinWidth">44</x:Double>
+    <x:Double x:Key="PlayerSeekSliderMinWidth">140</x:Double>
+    <x:Double x:Key="PlayerVolumeSliderWidth">88</x:Double>
+    <x:Double x:Key="PlayerVolumeTextMinWidth">44</x:Double>
 
     <!-- DataGrid Column Widths -->
     <DataGridLength x:Key="ColDirtyWidth">28</DataGridLength>
@@ -133,6 +163,9 @@
     <Thickness x:Key="ToolbarPadding">12,8</Thickness>
     <Thickness x:Key="ToolbarSeparatorMargin">4,0</Thickness>
     <Thickness x:Key="StatusBarPadding">12,6</Thickness>
+    <Thickness x:Key="PlayerBarPadding">12,6</Thickness>
+    <Thickness x:Key="PlayerStatusBadgePadding">6,1</Thickness>
+    <Thickness x:Key="PlayerSelectPlayButtonPadding">8,3</Thickness>
     <Thickness x:Key="DetailPanePadding">16</Thickness>
     <Thickness x:Key="DetailPaneHeaderPadding">16,8</Thickness>
     <Thickness x:Key="DetailBannerAreaPadding">16,8</Thickness>
@@ -180,6 +213,9 @@
     <CornerRadius x:Key="DefaultCornerRadius">4</CornerRadius>
     <x:Double x:Key="ToolbarSpacing">8</x:Double>
     <x:Double x:Key="StatusRightSpacing">16</x:Double>
+    <x:Double x:Key="PlayerBarSectionSpacing">12</x:Double>
+    <x:Double x:Key="PlayerControlSpacing">4</x:Double>
+    <x:Double x:Key="PlayerSeekSpacing">8</x:Double>
     <x:Double x:Key="DetailItemSpacing">8</x:Double>
     <x:Double x:Key="SmallItemSpacing">6</x:Double>
     <x:Double x:Key="ArtworkThumbContentSpacing">2</x:Double>
@@ -328,5 +364,11 @@
     <x:String x:Key="CustomTagManagerRemoveToolTip">この独自タグ定義を削除</x:String>
     <x:String x:Key="DialogOkButtonText">OK</x:String>
     <x:String x:Key="DialogCancelButtonText">キャンセル</x:String>
+    <x:String x:Key="PlaySelectedTrackContextMenuText">選択トラックを再生</x:String>
+    <x:String x:Key="PlayerPreviousToolTip">前のトラックを再生</x:String>
+    <x:String x:Key="PlayerNextToolTip">次のトラックを再生</x:String>
+    <x:String x:Key="PlayerStopToolTip">停止</x:String>
+    <x:String x:Key="PlayerPlaySelectedButtonText">選択曲を再生</x:String>
+    <x:String x:Key="PlayerVolumeSliderToolTip">音量を調整（settings.toml に自動保存）</x:String>
 
 </ResourceDictionary>

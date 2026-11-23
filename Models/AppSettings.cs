@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -10,6 +11,7 @@ public sealed class AppSettings
 {
     public TrackGridSettings TrackGrid { get; set; } = new();
     public DetailPaneSettings DetailPane { get; set; } = new();
+    public AudioPlayerSettings AudioPlayer { get; set; } = new();
 
     /// <summary>
     /// 既定値で初期化された <see cref="AppSettings"/> を生成する。
@@ -19,8 +21,41 @@ public sealed class AppSettings
         return new AppSettings
         {
             TrackGrid = TrackGridSettings.CreateDefault(),
-            DetailPane = DetailPaneSettings.CreateDefault()
+            DetailPane = DetailPaneSettings.CreateDefault(),
+            AudioPlayer = AudioPlayerSettings.CreateDefault()
         };
+    }
+}
+
+/// <summary>
+/// 簡易 FLAC プレーヤーの永続化設定モデル。
+/// </summary>
+public sealed class AudioPlayerSettings
+{
+    public const double MinVolume = 0.0;
+    public const double MaxVolume = 1.0;
+    public const double DefaultVolume = 0.8;
+
+    public double Volume { get; set; } = DefaultVolume;
+    public bool IsMuted { get; set; }
+
+    public static AudioPlayerSettings CreateDefault()
+    {
+        return new AudioPlayerSettings
+        {
+            Volume = DefaultVolume,
+            IsMuted = false
+        };
+    }
+
+    public static double ClampVolume(double volume)
+    {
+        if (double.IsNaN(volume) || double.IsInfinity(volume))
+        {
+            return DefaultVolume;
+        }
+
+        return Math.Clamp(volume, MinVolume, MaxVolume);
     }
 }
 

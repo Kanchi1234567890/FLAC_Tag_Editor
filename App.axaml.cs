@@ -50,6 +50,7 @@ public partial class App : Application
         services.AddSingleton<ITextSearchReplaceService, TextSearchReplaceService>();
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         services.AddSingleton<ICustomTagDefinitionService, CustomTagDefinitionService>();
+        services.AddSingleton<IAudioPlayerService, AudioPlayerService>();
 
         // ViewModels
         services.AddSingleton<MainWindowViewModel>();
